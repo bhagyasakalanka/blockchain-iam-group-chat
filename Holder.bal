@@ -197,6 +197,7 @@ service uiServiceHolderLogin on uiHolderLogin {
 
                     if (caller.localAddress.host != "") {
                         buffer= buffer.replace("localhost", caller.localAddress.host);
+                        didTxt = didTxt.replace("\"", "\'");
                         buffer= buffer.replace("DIDTEXT", didTxt);
                         buffer= buffer.replace("EMPTYUNAME", username);
                         buffer = buffer.replace("DIDMID", didmid);

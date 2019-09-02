@@ -281,9 +281,8 @@ service uiService on uiEP {
             var did = requestVariableMap["did"] ?: "";
             var vc = requestVariableMap["vc"] ?: "";
             int index2 = vc.indexOf("\"homeCountry\": {") + 41;
-            string didmid = vc.substring(index2, index2 + 64);
-            string hash = readHashFromBloackchain("0x"+didmid);
-
+            string didmid = vc.substring(index2, index2 + 66);
+            string hash = readHashFromBloackchain(didmid);
             index2 = hash.indexOf("\"input\":\"") + 9;
             hash = hash.substring(index2, index2 + 66);
             string hexEncodedString = "0x" + utils:hashSHA256("USA");
@@ -439,69 +438,69 @@ public function setResponseError(json jsonResponse) returns error {
             return;
         }
 
-        string functionToCall = functionMap[uname] ?: "";
-        http:Request request = new;
-        request.setHeader("Content-Type", "application/json");
-        request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_call", "params":[{"from": "0x88c9a72c84636bd5f39fe63cf4440214be31c061", "to":"0xbd7bc5b627cce81bf916b9f621ad79b96a4d7df1", "data": functionToCall}, "latest"]});
+        // string functionToCall = functionMap[uname] ?: "";
+        // http:Request request = new;
+        // request.setHeader("Content-Type", "application/json");
+        // request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_call", "params":[{"from": "0x88c9a72c84636bd5f39fe63cf4440214be31c061", "to":"0xbd7bc5b627cce81bf916b9f621ad79b96a4d7df1", "data": functionToCall}, "latest"]});
         
-        string finalResult = "";
-        boolean errorFlag = false;
-        var httpResponse = ethereumClient -> post("/", request);
-        if (httpResponse is http:Response) {
-            int statusCode = httpResponse.statusCode;
-            var jsonResponse = httpResponse.getJsonPayload();
-            if (jsonResponse is json) {
-                if (jsonResponse["error"] == null) {
-                    string inputString = jsonResponse.result.toString();
-                    finalResult = convertHexStringToString(inputString);
-                } else {
-                        error err = error("(wso2/ethereum)EthereumError",
-                        { message: "Error occurred while accessing the JSON payload of the response" });
-                        finalResult = jsonResponse["error"].toString();
-                        errorFlag = true;
-                }
-            } else {
-                error err = error("(wso2/ethereum)EthereumError",
-                { message: "Error occurred while accessing the JSON payload of the response" });
-                finalResult = jsonResponse.reason();
-                errorFlag = true;
-            }
-        } else {
-            error err = error("(wso2/ethereum)EthereumError", { message: "Error occurred while invoking the Ethererum API" });
-            errorFlag = true;
-        }
+        // string finalResult = "";
+        // boolean errorFlag = false;
+        // var httpResponse = ethereumClient -> post("/", request);
+        // if (httpResponse is http:Response) {
+        //     int statusCode = httpResponse.statusCode;
+        //     var jsonResponse = httpResponse.getJsonPayload();
+        //     if (jsonResponse is json) {
+        //         if (jsonResponse["error"] == null) {
+        //             string inputString = jsonResponse.result.toString();
+        //             finalResult = convertHexStringToString(inputString);
+        //         } else {
+        //                 error err = error("(wso2/ethereum)EthereumError",
+        //                 { message: "Error occurred while accessing the JSON payload of the response" });
+        //                 finalResult = jsonResponse["error"].toString();
+        //                 errorFlag = true;
+        //         }
+        //     } else {
+        //         error err = error("(wso2/ethereum)EthereumError",
+        //         { message: "Error occurred while accessing the JSON payload of the response" });
+        //         finalResult = jsonResponse.reason();
+        //         errorFlag = true;
+        //     }
+        // } else {
+        //     error err = error("(wso2/ethereum)EthereumError", { message: "Error occurred while invoking the Ethererum API" });
+        //     errorFlag = true;
+        // }
 
-        if (!errorFlag) {
-            string hashKey = untaint finalResult;
-            io:ReadableCharacterChannel sourceChannel = new (io:openReadableFile("key-db/" + untaint uname + "/" + hashKey), "UTF-8");
-            var readableRecordsChannel = new io:ReadableTextRecordChannel(sourceChannel, fs = ",", rs = "\n");
-            while (readableRecordsChannel.hasNext()) {
-                var result = readableRecordsChannel.getNext();
-                if (result is string[]) {
-                    string randKey = generateRandomKey(16);
-                    sessionMap[uname] = randKey;
-                    finalResult = utils:encryptRSAWithPublicKey(result[0], randKey);
-                } else {
-                    //return result; // An IO error occurred when reading the records.
-                }
-            }
-        } else {
-            io:println("An error has ocurred.");
-        }
+        // if (!errorFlag) {
+        //     string hashKey = untaint finalResult;
+        //     io:ReadableCharacterChannel sourceChannel = new (io:openReadableFile("key-db/" + untaint uname + "/" + hashKey), "UTF-8");
+        //     var readableRecordsChannel = new io:ReadableTextRecordChannel(sourceChannel, fs = ",", rs = "\n");
+        //     while (readableRecordsChannel.hasNext()) {
+        //         var result = readableRecordsChannel.getNext();
+        //         if (result is string[]) {
+        //             string randKey = generateRandomKey(16);
+        //             sessionMap[uname] = randKey;
+        //             finalResult = utils:encryptRSAWithPublicKey(result[0], randKey);
+        //         } else {
+        //             //return result; // An IO error occurred when reading the records.
+        //         }
+        //     }
+        // } else {
+        //     io:println("An error has ocurred.");
+        // }
 
-        http:Response res = new;
-        // A util method that can be used to set string payload.
-        res.setPayload(untaint finalResult);
-        res.setContentType("text/html; charset=utf-8");
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
-        res.setHeader("Access-Control-Allow-Headers", "Authorization, Lang");
+        // http:Response res = new;
+        // // A util method that can be used to set string payload.
+        // res.setPayload(untaint finalResult);
+        // res.setContentType("text/html; charset=utf-8");
+        // res.setHeader("Access-Control-Allow-Origin", "*");
+        // res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
+        // res.setHeader("Access-Control-Allow-Headers", "Authorization, Lang");
   
-        // Sends the response back to the client.
-        var result = caller->respond(res);
-        if (result is error) {
-            log:printError("Error sending response", err = result);
-        }
+        // // Sends the response back to the client.
+        // var result = caller->respond(res);
+        // if (result is error) {
+        //     log:printError("Error sending response", err = result);
+        // }
    }
 }
 

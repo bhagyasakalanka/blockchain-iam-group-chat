@@ -31,7 +31,10 @@ $(document).ready(function() {
 
     xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      console.log(xhttp.responseText);
+      console.log('====>AAA:'+xhttp.responseText);
+      if (xhttp.responseText.equals('done')) {
+        alert("Registration Completed");
+      }
       socket.send('KKKKKKKKKKKKKKKKKKK');
     }
   };
@@ -90,6 +93,7 @@ $(document).ready(function() {
           }
 
           function message(msg){
+            msg = msg.replace(/\'/g, '"');
             console.log(msg);
             $('#chatLog').html(msg);
             $('#chtLog').val(msg);

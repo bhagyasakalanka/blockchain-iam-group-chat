@@ -270,17 +270,31 @@ service uiServiceGovIDLogin on uiGovIDLogin {
         int index = did.indexOf("\"id\": \"did:ethr:") + 16;
         did = did.substring(index, index+64);
 
-        io:println(("insert into ssidb.govid(firstname, lastname, streetaddress, city, state, country, postcode, dob ,did) " + "values ('"+ firstName +"', '" + lastName + "', '" + streetAddress + "', '"+ city +"', '"+ state +"', '" + postcode + "', '" + country + "', '" + date + "', '" + did + "');"));
+        //io:println(("insert into ssidb.govid(firstname, lastname, streetaddress, city, state, country, postcode, dob ,did) " + "values ('"+ firstName +"', '" + lastName + "', '" + streetAddress + "', '"+ city +"', '"+ state +"', '" + postcode + "', '" + country + "', '" + date + "', '" + did + "');"));
 
-        var ret = ssiDB->update(untaint ("insert into ssidb.govid(firstname, lastname, streetaddress, city, state, postcode, country, dob, did) " + "values ('"+ firstName +"', '" + lastName + "', '" + streetAddress + "', '"+ city +"', '"+ state +"', '" + postcode + "', '" + country + "','" + date + "', '" + did + "');"));
+        var selectRet = ssiDB->select(untaint "select country, firstname from ssidb.govid where (did LIKE '"+ untaint did +"');", ());
 
-        var result = caller->respond("done");
+        if (selectRet is table<record {}>) {           
+             if (selectRet.hasNext()) {
+                 var result = caller->respond("did-exists");
 
-        if (result is error) {
-            log:printError("Error sending response", err = result);
+                if (result is error) {
+                    log:printError("Error sending response", err = result);
+                }
+
+                return;
+            } else {
+                var ret = ssiDB->update(untaint ("insert into ssidb.govid(firstname, lastname, streetaddress, city, state, postcode, country, dob, did) " + "values ('"+ firstName +"', '" + lastName + "', '" + streetAddress + "', '"+ city +"', '"+ state +"', '" + postcode + "', '" + country + "','" + date + "', '" + did + "');"));
+
+                var result = caller->respond("done");
+
+                if (result is error) {
+                    log:printError("Error sending response", err = result);
+                }
+
+                return;
+            }
         }
-
-        return;
    }
 
    @http:ResourceConfig {
