@@ -17,13 +17,14 @@
 import ballerina/http;
 import ballerina/log;
 import ballerina/io;
-import ballerina/config;
-import ballerina/math;
-import ballerina/mysql;
-import ballerina/sql;
+import ballerinax/java.jdbc;
 import ballerina/runtime;
-import wso2/ethereum;
+import ballerina/crypto;
 import wso2/utils;
+import ballerina/stringutils;
+import ballerina/file;
+
+
 
 listener http:Listener uiHolderLogin = new(9091);
 
@@ -33,27 +34,20 @@ map<string> userMap = {"alice": "123"};
 string chatBuffer = "";
 string pk = "";
 string verifiableCredentialsRepositoryURL = "https://localhost:9091/vc/";
-string ethereumAccount = "0xee0727d9e94dbb230233ea4bd362e4c081aabf38";
+string ethereumAccount = "0x3dd551059b5ba2fd8fe48bf5699bd54eea46bd53";
 
-ethereum:EthereumConfiguration ethereumConfig = {
-    jsonRpcEndpoint: "http://192.168.32.1:8081",
-    jsonRpcVersion: "2.0",
-    networkId: "2000"
-};
+final string WEB3_CLIENT_VERSION = "web3_clientVersion";
 
-mysql:Client ssiDB = new({
-        host: "192.168.32.1",
-        port: 3306,
-        name: "ssidb",
+http:Client ethereumClient = new("http://192.168.32.1:8083");
+
+jdbc:Client ssiDB = new({
+        url: "jdbc:mysql://192.168.32.1:3306/ssidb",
         username: "test",
         password: "test",
         dbOptions: { useSSL: false }
-    });
+});
 
 string holderRepo = "/var/tmp/iam/holder/alice";
-
-string jsonRpcEndpoint = ethereumConfig.jsonRpcEndpoint;
-http:Client ethereumClient = new(jsonRpcEndpoint, config = ethereumConfig.clientConfig);
 
 @http:ServiceConfig { basePath:"/",
     cors: {
@@ -71,16 +65,16 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function displayLoginPage(http:Caller caller, http:Request req, string name, string message) {
+   resource function displayLoginPage(http:Caller caller, http:Request req) {
        string buffer = readFile("web/holder-login.html");
        
        http:Response res = new;
 
        if (caller.localAddress.host != "") {
-           buffer= buffer.replace("localhost", caller.localAddress.host);
+        buffer= stringutils:replace(buffer,"localhost",caller.localAddress.host);
        }
 
-       res.setPayload(untaint buffer);
+       res.setPayload(<@untainted> buffer);
        res.setContentType("text/html; charset=utf-8");
        res.setHeader("Access-Control-Allow-Origin", "*");
        res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -100,14 +94,14 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function processLogin(http:Caller caller, http:Request req, string name, string message) returns error?{
+   resource function processLogin(http:Caller caller, http:Request req) returns error?{
         var requestVariableMap = check req.getFormParams();
         string username = requestVariableMap["username"]  ?: "";
         string password = requestVariableMap["pwd"]  ?: "";
         var authenticated = false;
 
         foreach var x in userMap {
-            if (username.equalsIgnoreCase(x[0]) && password.equalsIgnoreCase(x[1])) {
+            if (stringutils:equalsIgnoreCase(username,x[0]) && stringutils:equalsIgnoreCase(password,x[1])) {
                 io:println("Welcome " + username);
                 authenticatedMap[username] = true;
                 var result = caller->respond("success");
@@ -130,7 +124,7 @@ service uiServiceHolderLogin on uiHolderLogin {
         return;
    }
 
-    @http:ResourceConfig {
+      @http:ResourceConfig {
         methods:["GET"],
         path:"/home/did",
         cors: {
@@ -138,22 +132,21 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function displayLoginPage2(http:Caller caller, http:Request req, string name, string message) returns error? {
-       var requestVariableMap = req.getQueryParams();
-       string username = requestVariableMap["username"]  ?: "";
-
-           if(utils:fileExists(holderRepo + "/did.json") == "-1") {
-                if ((!(username.equalsIgnoreCase(""))) && authenticatedMap[username] == true) {
+   resource function displayLoginPage2(http:Caller caller, http:Request req) returns error? {
+        string username = req.getQueryParamValue("username") ?: "";
+        boolean fileExists = file:exists(holderRepo + "/did.json");
+        if(fileExists.toString() == "-1") {
+            if ((!(stringutils:equalsIgnoreCase(username,""))) && authenticatedMap[username] == true) {
                     var buffer = readFile("web/holder-homepage-no-did.html");
 
                     http:Response res = new;
 
                     if (caller.localAddress.host != "") {
-                        buffer= buffer.replace("localhost", caller.localAddress.host);
-                        buffer= buffer.replace("EMPTYUNAME", username);
+                        buffer= stringutils:replace(buffer,"localhost", caller.localAddress.host);
+                        buffer= stringutils:replace(buffer,"EMPTYUNAME", username);
                     }
 
-                    res.setPayload(untaint buffer);
+                    res.setPayload(<@untainted> buffer);
                     res.setContentType("text/html; charset=utf-8");
                     res.setHeader("Access-Control-Allow-Origin", "*");
                     res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -172,10 +165,11 @@ service uiServiceHolderLogin on uiHolderLogin {
                     if (caller.localAddress.host != "") {
                         hostname= caller.localAddress.host;
                     }
-                    buffer = buffer.replace("MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
+                    buffer = stringutils:replace(buffer,"MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
+
 
                     http:Response res = new;
-                    res.setPayload(untaint buffer);
+                    res.setPayload(<@untainted> buffer);
                     res.setContentType("text/html; charset=utf-8");
                     res.setHeader("Access-Control-Allow-Origin", "*");
                     res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -187,23 +181,22 @@ service uiServiceHolderLogin on uiHolderLogin {
                     }
                 }
            } else {
-                if ((!(username.equalsIgnoreCase(""))) && authenticatedMap[username] == true) {
+                        if ((!(stringutils:equalsIgnoreCase(username,""))) && authenticatedMap[username] == true) {
                     var buffer = readFile("web/holder-homepage-with-did.html");
                     var didTxt = readFile(holderRepo + "/did.json");
                     http:Response res = new;
 
-                    int index = didTxt.indexOf("\"id\": \"did:ethr:") + 16;
+                    int index = didTxt.indexOf("\"id\": \"did:ethr:") ?: 0 + 16;                  
                     string didmid = didTxt.substring(index, index+64);
 
                     if (caller.localAddress.host != "") {
-                        buffer= buffer.replace("localhost", caller.localAddress.host);
-                        didTxt = didTxt.replace("\"", "\'");
-                        buffer= buffer.replace("DIDTEXT", didTxt);
-                        buffer= buffer.replace("EMPTYUNAME", username);
-                        buffer = buffer.replace("DIDMID", didmid);
+                        buffer= stringutils:replace(buffer,"localhost", caller.localAddress.host);
+                        buffer= stringutils:replace(buffer,"DIDTEXT", didTxt);
+                        buffer= stringutils:replace(buffer,"EMPTYUNAME", username);
+                        buffer = stringutils:replace(buffer,"DIDMID", didmid);
                     }
 
-                    res.setPayload(untaint buffer);
+                    res.setPayload(<@untainted> buffer);
                     res.setContentType("text/html; charset=utf-8");
                     res.setHeader("Access-Control-Allow-Origin", "*");
                     res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -222,10 +215,11 @@ service uiServiceHolderLogin on uiHolderLogin {
                     if (caller.localAddress.host != "") {
                         hostname= caller.localAddress.host;
                     }
-                    buffer = buffer.replace("MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
+                     buffer = stringutils:replace(buffer,"MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
+
 
                     http:Response res = new;
-                    res.setPayload(untaint buffer);
+                    res.setPayload(<@untainted> buffer);
                     res.setContentType("text/html; charset=utf-8");
                     res.setHeader("Access-Control-Allow-Origin", "*");
                     res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -239,6 +233,7 @@ service uiServiceHolderLogin on uiHolderLogin {
            }
    }
 
+
     @http:ResourceConfig {
         methods:["GET"],
         path:"/home/vc",
@@ -247,29 +242,29 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function displayLoginPage3(http:Caller caller, http:Request req, string name, string message) returns error? {
-        var requestVariableMap = req.getQueryParams();
-        string username = requestVariableMap["username"]  ?: "";
-        string did = requestVariableMap["did"]  ?: "";
+   resource function displayLoginPage3(http:Caller caller, http:Request req) returns error? {
+        string username = req.getQueryParamValue("username") ?: "";
+        string did = req.getQueryParamValue("did") ?: "";
 
-        var selectRet = ssiDB->select(untaint "select id, issuer, name from ssidb.vclist where (did LIKE '"+ untaint did +"');", ());
+        var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
         string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
 
         if (selectRet is table<record {}>) {
-            var jsonConversionRet = json.convert(selectRet);
-            if (jsonConversionRet is json) {
-                int l = jsonConversionRet.length();
+            var jsonConversionRet = json.constructFrom(selectRet);
+            if (jsonConversionRet is map<json>[]) {
+                int l = jsonConversionRet.toJsonString().length();
                 int i = 0;
                 if (l == 0) {
                     tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
                 } else {
                     tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th></tr>";
                     while (i < l) {
-                        tbl = tbl + "<tr><td><a href=\"#\" onclick=\"showVC('" + jsonConversionRet[i]["id"].toString() + "');\">";
+                        tbl = tbl + "<tr><td><a href=\"#\" onclick=\"showVC('" + jsonConversionRet[i]["id"].toJsonString() + "');\">";
                         tbl = tbl + jsonConversionRet[i]["id"].toString();
                         tbl = tbl + "</a></td><td>";
                         tbl = tbl + jsonConversionRet[i]["name"].toString();
-                         tbl = tbl + "</td><td>";
+                        
+                        tbl = tbl + "</td><td>";
                         tbl = tbl + jsonConversionRet[i]["issuer"].toString();
                         i = i + 1;
                     }
@@ -282,10 +277,12 @@ service uiServiceHolderLogin on uiHolderLogin {
             io:println("Select data from vclist table failed");
         }
 
-        if ((!(username.equalsIgnoreCase(""))) && authenticatedMap[username] == true) {
+        if ((!(stringutils:equalsIgnoreCase(username,""))) && authenticatedMap[username] == true) {
             var buffer = readFile("web/holder-homepage-vc.html");
             var didTxt = "";
-            if(utils:fileExists(holderRepo + "/did.json") == "-1") {
+            boolean fileExists = file:exists(holderRepo + "/did.json");
+            if(fileExists.toString() == "-1") {
+                
         	    io:println("Cannot find the DID file.");
 	        } else {
                 didTxt = readFile(holderRepo + "/did.json");
@@ -294,17 +291,17 @@ service uiServiceHolderLogin on uiHolderLogin {
             http:Response res = new;
 
             if (caller.localAddress.host != "") {
-                buffer = buffer.replace("localhost", caller.localAddress.host);
-                buffer = buffer.replace("EMPTYUNAME", username);
-                io:println("tbl:" + tbl);
-                buffer = buffer.replace("VCTABLE", tbl);
-                buffer = buffer.replace("DIDMID", did);
+                buffer = stringutils:replace(buffer,"localhost", caller.localAddress.host);
+                buffer = stringutils:replace(buffer,"EMPTYUNAME", username);
+
+                buffer = stringutils:replace(buffer,"VCTABLE", tbl);
+                buffer = stringutils:replace(buffer,"DIDMID", did);
                 
                 didTxt = utils:stringToBinaryString(didTxt);
-                buffer = buffer.replace("DIDTXTVAL", didTxt);
+                buffer = stringutils:replace(buffer,"DIDTXTVAL", didTxt);
             }
 
-            res.setPayload(untaint buffer);
+            res.setPayload(<@untainted> buffer);
             res.setContentType("text/html; charset=utf-8");
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -323,10 +320,11 @@ service uiServiceHolderLogin on uiHolderLogin {
             if (caller.localAddress.host != "") {
                 hostname= caller.localAddress.host;
             }
-            buffer = buffer.replace("MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
+
+            buffer = stringutils:replace(buffer,"MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
 
             http:Response res = new;
-            res.setPayload(untaint buffer);
+            res.setPayload(<@untainted> buffer);
             res.setContentType("text/html; charset=utf-8");
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -348,16 +346,17 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function listVC(http:Caller caller, http:Request req, string name, string message) returns error? {
+   resource function listVC(http:Caller caller, http:Request req) returns error? {
         map<string> requestVariableMap = check req.getFormParams();
         string did = requestVariableMap["did"]  ?: "";
-        var selectRet = ssiDB->select(untaint "select id, issuer, name from ssidb.vclist where (did LIKE '"+ untaint did +"');", ());
+        io:println("did:" + did);
+        var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
         string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
 
         if (selectRet is table<record {}>) {
-            var jsonConversionRet = json.convert(selectRet);
-            if (jsonConversionRet is json) {
-                int l = jsonConversionRet.length();
+            var jsonConversionRet = json.constructFrom(selectRet);
+            if (jsonConversionRet is map<json>[]) {
+                int l = jsonConversionRet.toJsonString().length();
                 int i = 0;
                 if (l == 0) {
                     tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
@@ -368,7 +367,7 @@ service uiServiceHolderLogin on uiHolderLogin {
                         tbl = tbl + jsonConversionRet[i]["id"].toString();
                         tbl = tbl + "</a></td><td>";
                         tbl = tbl + jsonConversionRet[i]["name"].toString();
-                         tbl = tbl + "</td><td>";
+                        tbl = tbl + "</td><td>";
                         tbl = tbl + jsonConversionRet[i]["issuer"].toString();
                         tbl = tbl + "</td><td><input type=\"checkbox\" id=\"" + jsonConversionRet[i]["id"].toString()  + "\" name=\"vcselect\"\\>";
                         i = i + 1;
@@ -382,19 +381,19 @@ service uiServiceHolderLogin on uiHolderLogin {
             io:println("Select data from vclist table failed");
         }
 
-        http:Response res = new;
-        var buffer = tbl;
+            http:Response res = new;
+            var buffer = tbl;
 
-        res.setPayload(untaint buffer);
-        res.setContentType("text/html; charset=utf-8");
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
-        res.setHeader("Access-Control-Allow-Headers", "Authorization, Lang");
+            res.setPayload(<@untainted> buffer);
+            res.setContentType("text/html; charset=utf-8");
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
+            res.setHeader("Access-Control-Allow-Headers", "Authorization, Lang");
 
-        var result = caller->respond(res);
-        if (result is error) {
-            log:printError("Error sending response", err = result);
-        }
+            var result = caller->respond(res);
+            if (result is error) {
+                log:printError("Error sending response", err = result);
+            }
    }
 
     @http:ResourceConfig {
@@ -405,21 +404,23 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function api(http:Caller caller, http:Request req, string name, string message) returns error?{
+   resource function api(http:Caller caller, http:Request req) returns error?{
         var requestVariableMap = check req.getFormParams();
         
         string publicKey = requestVariableMap["publickey"]  ?: "";
-        publicKey = publicKey.replace("+", " ");
-        publicKey = publicKey.replace("%2B", "+");
-        publicKey = publicKey.replace("%2F", "/");
-        publicKey = publicKey.replace("%3D", "=");
+        publicKey = stringutils:replace(publicKey,"+", " ");
+        publicKey = stringutils:replace(publicKey,"%2B", "+");
+        publicKey = stringutils:replace(publicKey,"%2F", "/");
+        publicKey = stringutils:replace(publicKey,"%3D", "=");
                
         if (requestVariableMap["command"] == "cmd1") {
             string finalResult = sendTransactionAndgetHash(publicKey);
 
             if (finalResult == "-1") {
+                //If its error
+                io:println("its is null--->"+finalResult);
                 http:Response res = new;
-                res.setPayload(untaint "null");
+                res.setPayload(<@untainted> "null");
                 res.setContentType("text/html; charset=utf-8");
                 res.setHeader("Access-Control-Allow-Origin", "*");
                 res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -431,18 +432,21 @@ service uiServiceHolderLogin on uiHolderLogin {
                 }
             } else {
 
+            io:println("Error in holder.bal######--->"+finalResult);        
             finalResult = finalResult.substring(2, 66);
 
             var templateDID = "{" +
                     "\"@context\": \"https://w3id.org/did/v1\"," +
                     "\"id\": \"did:ethr:"+ finalResult +"\"," +
                     "\"authentication\": [{" +
+                    // used to authenticate as did:...fghi
                     "\"id\": \"did:ethr:" + finalResult + "#keys-1\"," +
                     "\"type\": \"RsaVerificationKey2018\"," +
                     "\"controller\": \"did:ethr:" + finalResult + "\"," +
                     "\"publicKeyPem\": \"" + publicKey + "\"" +
                     "}]," +
                     "\"service\": [{" +
+                    // used to retrieve Verifiable Credentials associated with the DID
                     "\"type\": \"VerifiableCredentialService\"," +
                     "\"serviceEndpoint\": \"" + verifiableCredentialsRepositoryURL + "\"" +
                     "}]" +
@@ -451,11 +455,19 @@ service uiServiceHolderLogin on uiHolderLogin {
                 io:println(templateDID);
 
                 string path = holderRepo + "/did.json";
-                var result2 = writeFile(path, templateDID);
 
+                io:WritableByteChannel wbc = check io:openWritableFile(path);
+
+                io:WritableCharacterChannel wch = new(wbc, "UTF8");
+                var wResult = wch.writeJson(templateDID);
+                closeWc(wch);
+
+                if (wResult is error) {
+                    log:printError("Error occurred while writing json: ", err = wResult);
+                }
 
                 http:Response res = new;
-                res.setPayload(untaint templateDID);
+                res.setPayload(<@untainted> templateDID);
                 res.setContentType("text/html; charset=utf-8");
                 res.setHeader("Access-Control-Allow-Origin", "*");
                 res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -472,20 +484,20 @@ service uiServiceHolderLogin on uiHolderLogin {
             string issuerVC = requestVariableMap["issuerVC"]  ?: "";
             string nameVC = requestVariableMap["nameVC"]  ?: "";
             string vcTxt = requestVariableMap["vcTxt"]  ?: "";
-            var selectRet = ssiDB->select(untaint "select name from ssidb.vclist where (did LIKE '"+ untaint did +"');", ());
+            var selectRet = ssiDB->select(<@untainted> "select name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
 
             string name2 = "";
 
             if (selectRet is table<record {}>) {
                 if (selectRet.hasNext()) {
-                    var jsonConversionRet = json.convert(selectRet);
+                    var jsonConversionRet = json.constructFrom(selectRet);
                     
-                    if (jsonConversionRet is json) {
+                    if (jsonConversionRet is map<json>[]) {
                         name2 = jsonConversionRet[0]["name"].toString();
 
                         if (nameVC === name2) {
                             http:Response res = new;
-                            res.setPayload(untaint "vc-already-exist");
+                            res.setPayload(<@untainted> "vc-already-exist");
                             res.setContentType("text/html; charset=utf-8");
                             res.setHeader("Access-Control-Allow-Origin", "*");
                             res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -504,19 +516,20 @@ service uiServiceHolderLogin on uiHolderLogin {
                 }
             }
 
-            vcTxt = vcTxt.replace("'","''");
-            var ret = ssiDB->update(untaint ("insert into ssidb.vclist(did, id, issuer, name, vctext) " + "values ('"+ did +"', '" + didVC.substring(2, didVC.length()) + "', '" + issuerVC + "', '"+ nameVC +"', '" + vcTxt + "');"));
+            vcTxt = stringutils:replace(vcTxt,"'","''");
+            var ret = ssiDB->update(<@untainted> ("insert into ssidb.vclist(did, id, issuer, name, vctext) " + "values ('"+ did +"', '" + didVC.substring(2, didVC.length()) + "', '" + issuerVC + "', '"+ nameVC +"', '" + vcTxt + "');"));
      
-            var selectRet2 = ssiDB->select(untaint "select id, issuer, name from ssidb.vclist where (did LIKE '"+ untaint did +"');", ());
+            var selectRet2 = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
                 string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
 
                 if (selectRet2 is table<record {}>) {
-                    var jsonConversionRet = json.convert(selectRet2);
-                    if (jsonConversionRet is json) {
+                    io:println("\nConvert the table into json3");
+                    var jsonConversionRet = json.constructFrom(selectRet2);
+                    if (jsonConversionRet is map<json>[]) {
                         io:println(io:sprintf("%s", jsonConversionRet));
 
-                        int l = jsonConversionRet.length();
-                        io:print("len l: " + l);
+                        int l = jsonConversionRet.toJsonString().length();
+                        io:print("len l: " + l.toString());
                         int i = 0;
                         if (l == 0) {
                             tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
@@ -540,8 +553,10 @@ service uiServiceHolderLogin on uiHolderLogin {
                     io:println("Select data from vclist table failed");
                 }
 
+
+
             http:Response res = new;
-            res.setPayload(untaint tbl);
+            res.setPayload(<@untainted> tbl);
             res.setContentType("text/html; charset=utf-8");
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -553,15 +568,15 @@ service uiServiceHolderLogin on uiHolderLogin {
             }
         } else if (requestVariableMap["command"] == "cmd3") {
             string id = requestVariableMap["id"]  ?: "";
-            var selectRet = ssiDB->select(untaint "select vctext from ssidb.vclist where (id LIKE '"+ untaint id +"');", ());
+            var selectRet = ssiDB->select(<@untainted> "select vctext from ssidb.vclist where (id LIKE '"+ <@untainted> id +"');", ());
             
             string vcText = "no-vc-for-this-did";
 
             if (selectRet is table<record {}>) {
                 if (selectRet.hasNext()) {
-                    var jsonConversionRet = json.convert(selectRet);
+                    var jsonConversionRet = json.constructFrom(selectRet);
                     
-                    if (jsonConversionRet is json) {
+                    if (jsonConversionRet is map<json>[]) {
                         vcText = jsonConversionRet[0]["vctext"].toString();
                     }
                 } else {
@@ -570,7 +585,7 @@ service uiServiceHolderLogin on uiHolderLogin {
             }
 
             http:Response res = new;
-            res.setPayload(untaint vcText);
+            res.setPayload(<@untainted> vcText);
             res.setContentType("text/html; charset=utf-8");
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -592,7 +607,7 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function sendGOVIDCSS(http:Caller caller, http:Request req, string name, string message) {
+   resource function sendGOVIDCSS(http:Caller caller, http:Request req) {
        http:Response res = new;
 
        res.setFileAsPayload("web/govid-request.css", contentType = "text/css");
@@ -612,7 +627,7 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function sendBundle(http:Caller caller, http:Request req, string name, string message) {
+   resource function sendBundle(http:Caller caller, http:Request req) {
        http:Response res = new;
 
        res.setFileAsPayload("web/bundle.js", contentType = "text/javascript");
@@ -632,7 +647,7 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function sendFileSaver(http:Caller caller, http:Request req, string name, string message) {
+   resource function sendFileSaver(http:Caller caller, http:Request req) {
        http:Response res = new;
 
        res.setFileAsPayload("web/FileSaver.js", contentType = "text/javascript");
@@ -652,7 +667,7 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function sendJSEncrypt(http:Caller caller, http:Request req, string name, string message) {
+   resource function sendJSEncrypt(http:Caller caller, http:Request req) {
        http:Response res = new;
 
        res.setFileAsPayload("web/jsencrypt.js", contentType = "text/javascript");
@@ -668,7 +683,7 @@ service uiServiceHolderLogin on uiHolderLogin {
         methods:["GET"],
         path:"/browser-aes.js"
     }
-   resource function sendBrowserAES(http:Caller caller, http:Request req, string name, string message) {
+   resource function sendBrowserAES(http:Caller caller, http:Request req) {
        http:Response res = new;
 
        res.setFileAsPayload("web/browser-aes.js", contentType = "text/javascript");
@@ -688,11 +703,10 @@ service uiServiceHolderLogin on uiHolderLogin {
             allowHeaders: ["Authorization, Lang"]
         }
     }
-   resource function logout(http:Caller caller, http:Request req, string name, string message) {
-       var requestVariableMap = req.getQueryParams();
-       string username = requestVariableMap["username"]  ?: "";
+   resource function logout(http:Caller caller, http:Request req) {
+       string username = req.getQueryParamValue("username") ?: "";
 
-       if ((!(username.equalsIgnoreCase(""))) && authenticatedMap[username] == true) {
+       if ((!(stringutils:equalsIgnoreCase(username,""))) && authenticatedMap[username] == true) {
            authenticatedMap[username] = false;
        }
 
@@ -701,10 +715,10 @@ service uiServiceHolderLogin on uiHolderLogin {
        http:Response res = new;
 
        if (caller.localAddress.host != "") {
-           buffer= buffer.replace("localhost", caller.localAddress.host);
+         buffer= stringutils:replace(buffer,"localhost", caller.localAddress.host);
        }
 
-       res.setPayload(untaint buffer);
+       res.setPayload(<@untainted> buffer);
        res.setContentType("text/html; charset=utf-8");
        res.setHeader("Access-Control-Allow-Origin", "*");
        res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
@@ -718,17 +732,24 @@ service uiServiceHolderLogin on uiHolderLogin {
    }
  }
 
+string ping = "ping";
+byte[] pingData = ping.toBytes();
+
 @http:WebSocketServiceConfig {
     path: "/basic/ws",
     subProtocols: ["xml", "json"],
     idleTimeoutInSeconds: 120
 }
-service basic on new http:WebSocketListener(9093) {
 
-    string ping = "ping";
-    byte[] pingData = ping.toByteArray("UTF-8");
+service basic on new http:Listener(9093) {
 
     resource function onOpen(http:WebSocketCaller caller) {
+        io:println("\nNew client connected");
+        io:println("Connection ID: " + caller.getConnectionId());
+        io:println("Negotiated Sub protocol: " + caller.getNegotiatedSubProtocol().toString());
+        io:println("Is connection open: " + caller.isOpen().toString());
+        io:println("Is connection secured: " + caller.isSecure().toString());
+
         while(true) {
             var err = caller->pushText(pk);
             if (err is error) {
@@ -740,27 +761,26 @@ service basic on new http:WebSocketListener(9093) {
 
     resource function onText(http:WebSocketCaller caller, string text,
                                 boolean finalFrame) {
+        io:println("\ntext message: " + text + " & final fragment: "
+                                                        + finalFrame.toString());
+
         if (text == "ping") {
             io:println("Pinging...");
-            var err = caller->ping(self.pingData);
-            if (err is error) {
-                log:printError("Error sending ping", err = err);
+            var err = caller->ping(pingData);
+            if (err is http:WebSocketError) {
+                log:printError("Error sending ping", <error> err);
             }
         } else if (text == "closeMe") {
-            var err = caller->close(statusCode = 1001,
+            error? result = caller->close(statusCode = 1001,
                             reason = "You asked me to close the connection",
-                            timeoutInSecs = 0);
-        } else {
-            chatBuffer = untaint text + "\r\n";
-            var err = caller->pushText(chatBuffer);
-            if (err is error) {
-                log:printError("Error occurred when sending text", err = err);
+                            timeoutInSeconds = 0);
+            if (result is http:WebSocketError) {
+                log:printError("Error occurred when closing connection", <error> result);
             }
-
-            io:println("Pinging...");
-            var err2 = caller->ping(self.pingData);
-            if (err2 is error) {
-                log:printError("Error sending ping", err = err);
+        } else {
+            var err = caller->pushText("You said: " + text);
+            if (err is http:WebSocketError) {
+                log:printError("Error occurred when sending text", <error> err);
             }
         }
     }
@@ -770,16 +790,16 @@ service basic on new http:WebSocketListener(9093) {
         io:print("UTF-8 decoded binary message: ");
         io:println(b);
         var err = caller->pushBinary(b);
-        if (err is error) {
-            log:printError("Error occurred when sending binary", err = err);
+        if (err is http:WebSocketError) {
+            log:printError("Error occurred when sending binary", <error> err);
         }
     }
 
     resource function onPing(http:WebSocketCaller caller, byte[] data) {
         var err = caller->pong(data);
-        if (err is error) {
+        if (err is http:WebSocketError) {
             log:printError("Error occurred when closing the connection",
-                            err = err);
+                            <error> err);
         }
     }
 
@@ -789,50 +809,54 @@ service basic on new http:WebSocketListener(9093) {
 
     resource function onIdleTimeout(http:WebSocketCaller caller) {
         io:println("\nReached idle timeout");
+        io:println("Closing connection " + caller.getConnectionId());
+        var err = caller->close(statusCode = 1001, reason =
+                                    "Connection timeout");
+        if (err is http:WebSocketError) {
+            log:printError("Error occurred when closing the connection", <error> err);
+        }
     }
 
     resource function onError(http:WebSocketCaller caller, error err) {
-        log:printError("Error occurred ", err = err);
+        log:printError("Error occurred ", err);
     }
 
     resource function onClose(http:WebSocketCaller caller, int statusCode,
                                 string reason) {
-        io:println(string `Client left with {{statusCode}} because
-                    {{reason}}`);
+        io:println(string `Client left with ${statusCode} because
+                    ${reason}`);
     }
 }
 
+function closeWc(io:WritableCharacterChannel wc) {
+    var result = wc.close();
+    if (result is error) {
+        log:printError("Error occurred while closing character stream",
+                        err = result);
+    }
+}
 
+public function readFile(string filePath) returns string {
+    string buffer = "";
+    io:ReadableByteChannel | io:Error readableByteChannel = io:openReadableFile(filePath);
+    if (readableByteChannel is io:ReadableByteChannel) {
 
-public function readFile (string filePath) returns (string) {
-        io:ReadableByteChannel readableByteChannel = io:openReadableFile(filePath);
-        var readableCharChannel = new io:ReadableCharacterChannel(readableByteChannel, "UTF-8");
-        var readableRecordsChannel = new io:ReadableTextRecordChannel(readableCharChannel);
+        io:ReadableCharacterChannel | io:Error readableCharChannel = new io:ReadableCharacterChannel(readableByteChannel, "UTF-8");
 
-        string buffer = "";
-
-        while (readableRecordsChannel.hasNext()) {
-            var result = readableRecordsChannel.getNext();
-            if (result is string[]) {
-                string item = string.convert(result[0]);
-                buffer += item;
-            } else {
-                 io:println("Error");
+        if (readableCharChannel is io:ReadableCharacterChannel) {
+            var readableRecordsChannel = new io:ReadableTextRecordChannel(readableCharChannel, fs = ",", rs = "\n");
+            while (readableRecordsChannel.hasNext()) {
+                var result = readableRecordsChannel.getNext();
+                if (result is string[]) {
+                    string item = <@untainted>result[0].toString();
+                    buffer += item;
+                } else {
+                    io:println("Error");
+                }
             }
         }
-
-        return buffer;
-}
-
-public function writeFile(string filePath, string content) returns error? {
-    io:WritableCharacterChannel destinationChannel = new(io:openWritableFile(holderRepo + "/did.json"), "UTF-8");
-    var writeCharResult = check destinationChannel.write(content, 0);
-
-    var cr = destinationChannel.close();
-    if (cr is error) {
-        log:printError("Error occured while closing the channel: ", err = cr);
     }
-    return;
+    return buffer;
 }
 
 public function sendTransactionAndgetHash(string data) returns (string) {
@@ -842,61 +866,87 @@ public function sendTransactionAndgetHash(string data) returns (string) {
 
             string finalResult2 = "";
             boolean errorFlag2 = false;
-            var httpResponse2 = ethereumClient -> post("/", request2);
+            var httpResponse2 = ethereumClient -> post("/", constructRequest("2.0", 2000, "personal_unlockAccount", "[]"));
 
             if (httpResponse2 is http:Response) {
                 int statusCode = httpResponse2.statusCode;
                 var jsonResponse = httpResponse2.getJsonPayload();
-                if (jsonResponse is json) {
-                    if (jsonResponse["error"] == null) {
-                        finalResult2 = jsonResponse.result.toString();
+                if (jsonResponse is map<json>[]) {
+                    if (jsonResponse[0]["error"] == null) {
+                        finalResult2 = jsonResponse[0].result.toString();
                     } else {
                             error err = error("(wso2/ethereum)EthereumError",
-                            { message: "Error occurred while accessing the JSON payload of the response" });
-                            finalResult2 = jsonResponse["error"].toString();
+                                                message="Error occurred while accessing the JSON payload of the response");
+                            finalResult2 = jsonResponse[0]["error"].toString();
                             errorFlag2 = true;
                     }
                 } else {
-                    error err = error("(wso2/ethereum)EthereumError",
-                    { message: "Error occurred while accessing the JSON payload of the response" });
-                    finalResult2 = jsonResponse.reason();
-                    errorFlag2 = true;
-                }
+                    error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
+                        finalResult2 = "Error occurred while accessing the JSON payload of the response";
+                        errorFlag2 = true;
+                    }
             } else {
-                error err = error("(wso2/ethereum)EthereumError", { message: "Error occurred while invoking the Ethererum API" });
+                error err = error("(wso2/ethereum)EthereumError", message="Error occurred while invoking the Ethererum API");
                 errorFlag2 = true;
             }
 
-            string hexEncodedString = "0x" + utils:hashSHA256(data);
+            string hexEncodedString = "0x" + utils:hashSHA256(data);//encoding:encodeHex(output);
+            
+            byte[] hexEncodedString2 =  crypto:hashSha256(data.toBytes());
+            io:println("Hash with SHA256: " + hexEncodedString2.toBase16());
+
+            //Next we will write the blockchain record
             http:Request request = new;
             request.setHeader("Content-Type", "application/json");
             request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_sendTransaction", "params":[{"from": ethereumAccount, "to":"0x6814412628addef8989ee696a67b0fad5d62735e", "data": hexEncodedString}]});
 
             string finalResult = "";
             boolean errorFlag = false;
-            var httpResponse = ethereumClient -> post("/", request);
+            var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_sendTransaction", "[]"));
+
             if (httpResponse is http:Response) {
                 int statusCode = httpResponse.statusCode;
                 var jsonResponse = httpResponse.getJsonPayload();
-                if (jsonResponse is json) {
-                    if (jsonResponse["error"] == null) {
-                        finalResult = jsonResponse.result.toString();
+                if (jsonResponse is map<json>[]) {
+                    if (jsonResponse[0]["error"] == null) {
+                        finalResult = jsonResponse[0].result.toString();
                     } else {
-                            error err = error("(wso2/ethereum)EthereumError",
-                            { message: "Error occurred while accessing the JSON payload of the response" });
-                            finalResult = jsonResponse["error"].toString();
+                            error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
+                            finalResult = jsonResponse[0]["error"].toString();
                             errorFlag = true;
                     }
                 } else {
-                    error err = error("(wso2/ethereum)EthereumError",
-                    { message: "Error occurred while accessing the JSON payload of the response" });
-                    finalResult = jsonResponse.reason();
+                    error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
+                    finalResult = "Error occurred while accessing the JSON payload of the response";
                     errorFlag = true;
                 }
             } else {
-                error err = error("(wso2/ethereum)EthereumError", { message: "Error occurred while invoking the Ethererum API" });
+                error err = error("(wso2/ethereum)EthereumError", message="Error occurred while invoking the Ethererum API");
                 errorFlag = true;
             }
 
             return finalResult;
+}
+
+function constructRequest(string jsonRPCVersion, int networkId, string method, json params) returns http:Request {
+    http:Request request = new;
+    request.setHeader("Content-Type", "application/json");
+    json payload = {};
+    if (params == "[]") {
+        payload = {
+            jsonrpc: jsonRPCVersion, 
+            method: method, 
+            params: [], 
+            id: networkId
+        };
+    } else {
+        payload = {
+            jsonrpc: jsonRPCVersion, 
+            method: method, 
+            params: params, 
+            id: networkId
+        };
+    }
+    request.setJsonPayload(payload);
+    return request;
 }
