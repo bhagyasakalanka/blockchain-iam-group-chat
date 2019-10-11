@@ -273,23 +273,11 @@ service uiServiceGovIDLogin on uiGovIDLogin {
         var ret = ssiDB->update(<@untainted> ("insert into ssidb.govid(firstname, lastname, streetaddress, city, state, postcode, country, dob, did) " + "values ('"+ firstName +"', '" + lastName + "', '" + streetAddress + "', '"+ city +"', '"+ state +"', '" + postcode + "', '" + country + "','" + date + "', '" + did + "');"));
         var result = caller->respond("done");
 
-                if (result is error) {
-                    log:printError("Error sending response", err = result);
-                }
-
-                return;
-            } else {
-                var ret = ssiDB->update(untaint ("insert into ssidb.govid(firstname, lastname, streetaddress, city, state, postcode, country, dob, did) " + "values ('"+ firstName +"', '" + lastName + "', '" + streetAddress + "', '"+ city +"', '"+ state +"', '" + postcode + "', '" + country + "','" + date + "', '" + did + "');"));
-
-                var result = caller->respond("done");
-
-                if (result is error) {
-                    log:printError("Error sending response", err = result);
-                }
-
-                return;
-            }
+        if (result is error) {
+            log:printError("Error sending response", err = result);
         }
+
+        return;
    }
 
    @http:ResourceConfig {
@@ -645,55 +633,55 @@ public function getVerifiableCredentials(string didmid) returns (string) {
 
     string finalResult = sendTransactionAndgetHash(country);
 
-    string countryCredential = "|||" + didmid + "," + finalResult + ",http://ip6-localhost:9090/api,CountryCredential" + "||| " + "{
-  // set the context, which establishes the special terms we will be using
-  // such as 'issuer' and 'alumniOf'.
-  \"@context\": [
-    \"https://www.w3.org/2018/credentials/v1\",
-    \"https://www.w3.org/2018/credentials/examples/v1\"
-  ],
-  // specify the identifier for the credential
-  \"id\": \"http://localhost:9090/credentials/1\",
-  // the credential types, which declare what data to expect in the credential
-  \"type\": [\"VerifiableCredential\", \"CountryCredential\"],
-  // the entity that issued the credential
-  \"issuer\": \"http://ip6-localhost:9090/api\",
-  // when the credential was issued
-  \"issuanceDate\": \"" + customTimeString + "\",
-  // claims about the subjects of the credential
-  \"credentialSubject\": {
-    // identifier for the only subject of the credential
-    \"id\": \"did:ethr:" + didmid + "\",
-    // assertion about the only subject of the credential
-    \"homeCountry\": {
-      \"id\": \"did:ethr:" + finalResult + "\",
-      \"name\": [{
-        \"value\": \"home country\",
-        \"lang\": \"en\"
-      }, {
-        \"value\": \"" + country + "\",
-        \"lang\": \"en\"
-      }]
-    }
-  },
-  // digital proof that makes the credential tamper-evident
-  // see the NOTE at end of this section for more detail
-  \"proof\": {
-    // the cryptographic signature suite that was used to generate the signature
-    \"type\": \"RsaSignature2018\",
-    // the date the signature was created
-    \"created\": \"2017-06-18T21:19:10Z\",
-    // purpose of this proof
-    \"proofPurpose\": \"assertionMethod\",
-    // the identifier of the public key that can verify the signature
-    \"verificationMethod\": \"https://example.edu/issuers/keys/1\",
-    // the digital signature value
-    \"jws\": \"eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5X
-      sITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUc
-      X16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtj
-      PAYuNzVBAh4vGHSrQyHUdBBPM\"
-  }
-}";
+    string countryCredential = "|||" + didmid + "," + finalResult + ",http://ip6-localhost:9090/api,CountryCredential" + "||| " + "{" +
+  "// set the context, which establishes the special terms we will be using" + 
+  "// such as 'issuer' and 'alumniOf'." + 
+  "\"@context\": [" + 
+  "  \"https://www.w3.org/2018/credentials/v1\"," + 
+  "  \"https://www.w3.org/2018/credentials/examples/v1\"" + 
+  "]," + 
+  "// specify the identifier for the credential" + 
+  "\"id\": \"http://localhost:9090/credentials/1\"," + 
+  "// the credential types, which declare what data to expect in the credential" + 
+  "\"type\": [\"VerifiableCredential\", \"CountryCredential\"]," + 
+  "// the entity that issued the credential" + 
+  "\"issuer\": \"http://ip6-localhost:9090/api\"," + 
+  "// when the credential was issued" + 
+  "\"issuanceDate\": \"" + customTimeString + "\"," + 
+  "// claims about the subjects of the credential" + 
+  "\"credentialSubject\": {" + 
+  "// identifier for the only subject of the credential" + 
+    "\"id\": \"did:ethr:" + didmid + "\"," + 
+    "// assertion about the only subject of the credential" + 
+    "\"homeCountry\": {" + 
+     " \"id\": \"did:ethr:" + finalResult + "\"," + 
+      "\"name\": [{" + 
+      "  \"value\": \"home country\"," +
+        "\"lang\": \"en\"" + 
+      "}, {" + 
+       " \"value\": \"" + country + "\"," +
+        "\"lang\": \"en\"" +
+      "}]" +
+    "}" +
+  "}," +
+  "// digital proof that makes the credential tamper-evident" + 
+  "// see the NOTE at end of this section for more detail" + 
+  "\"proof\": {" + 
+    "// the cryptographic signature suite that was used to generate the signature" + 
+    "\"type\": \"RsaSignature2018\"," + 
+    "// the date the signature was created" +
+    "\"created\": \"2017-06-18T21:19:10Z\"," +
+    "// purpose of this proof" +
+    "\"proofPurpose\": \"assertionMethod\"," + 
+    "// the identifier of the public key that can verify the signature" + 
+    "\"verificationMethod\": \"https://example.edu/issuers/keys/1\"," +
+    "// the digital signature value" + 
+    "\"jws\": \"eyJhbGciOiJSUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..TCYt5X" +
+      "sITJX1CxPCT8yAV-TVkIEq_PbChOMqsLfRoPsnsgw5WEuts01mq-pQy7UJiN5mgRxD-WUc" +
+      "X16dUEMGlv50aqzpqh4Qktb3rk-BuQy72IFLOqV0G_zS245-kronKb78cPN25DGlcTwLtj" + 
+      "PAYuNzVBAh4vGHSrQyHUdBBPM\"" +
+  "}" +
+"}";
 
 return countryCredential;
 }
