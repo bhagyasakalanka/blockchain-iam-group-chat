@@ -24,7 +24,7 @@
         $.post($('#issuerUrl').val(),
         {
           command: 'cmd1',
-          did: encodedStr,//JSON.stringify($('#didText').val()),//'kk',//$('#didText').val(),
+          did: encodedStr,
           secureToken: $('#securityToken').val()
         },
         function(data,status){
@@ -93,7 +93,7 @@
                 <tr>
                   <td>
                     <p id="didTxt" name="didTxt" rows="4">DIDTEXT</p>
-                    <input type="text" id="didTextVar" name="didTextVar" size=20 hidden value="DIDTEXT"></input>
+                    <input type="text" id="didTextVar" name="didTextVar" size=20 hidden value='DIDTEXT'></input>
                   </td>
                 </tr>
                 <tr>

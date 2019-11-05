@@ -4,34 +4,9 @@
 <script type="text/javascript" src="http://localhost:9097/jsencrypt.js"></script>
 <script type="text/javascript" src="http://localhost:9097/browser-aes.js"></script>
 <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
-<!-- <script>
-    $(document).ready(function() {
-        $("#vc-btn").click( function() {
-          console.log('result:');
-        });
-      });
-</script> -->
 <script>
   function submitVC(){
     console.log('result:');
-  //   var selected = [];
-  //   $('#checkboxes input:checked').each(function() {
-  //   selected.push($(this).attr('name'));
-  // });
-    //var selected = $('#checkboxes input:checked').map(function(i,el){return el.name;}).get(); // add .join(';') 
-
-    //var selecteditems = [];
-
-// $("#Div").find("input:checked").each(function (i, ob) { 
-//     selecteditems.push($(ob).val());
-// });
-
-    //console.log(selected);
-
-
-  //   $('input[name="checkboxes"]:checked').each(function() {
-  //  console.log(this.value);
-
 
   var tags = document.getElementsByName('vcselect');
 for(var i = 0; i < tags.length; ++i)
@@ -51,9 +26,6 @@ for(var i = 0; i < tags.length; ++i)
             vc = this.responseText;
           }
 
-        //   var win = window.open('', 'Verifiable credential of did:ethr:' + dt, 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
-        //   var doc = win.document.open();
-
         var xhttp = new XMLHttpRequest();
         var didText = document.getElementById('didTxt').value;
         var idxMid = didText.indexOf('"id": "did:ethr:') + 16;
@@ -70,9 +42,6 @@ for(var i = 0; i < tags.length; ++i)
 
 
          }
-
-        // doc.write('<html><body>' + vc + '</body></html>');
-        // doc.close();
       };
       xhttp.open("POST", "http://localhost:9091/api", true);
       xhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -113,8 +82,6 @@ function decryptRSA(encrypted) {
 }
 
 function showVC(dt){
-  // var win = window.open('', '',"toolbar=no, width=100, height=20");
-  // var doc = win.document.open();
   var w = 400;
   var h = 600;
   var left = (screen.width/2)-(w/2);
@@ -147,73 +114,6 @@ function showVC(dt){
 
 </script>
 
-<!-- <script>
-function send(encryptedval) {
-  var xhttp = new XMLHttpRequest();
-  var urlEncodedDataPairs = [];
-  var params = "username=" + document.getElementById('username').value + "&encryptedval=" + encryptedval; 
-
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      uncrypted = decryptRSA(this.responseText);
-    }
-  };
-  xhttp.open("POST", "http://localhost:9097/authentication", true);
-  xhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhttp.send(params);
-};
-</script>
-<script>
-    function sleep( millisecondsToWait )
-    {
-
-    var now = new Date().getTime();
-
-    while ( new Date().getTime() < now + millisecondsToWait )
-
-    {
-
-    }
-
-    }
-</script> -->
-
-<!-- <script>
-  function startReadPrivKey() {
-    var file = document.getElementById('file-input-priv').files[0];
-    
-    if(file){
-      getAsText(file);
-    }
-  }
-  
-  function getAsText(readFile) {
-    var reader = new FileReader();
-    reader.readAsText(readFile, "UTF-8");
-  
-    reader.onprogress = updateProgress;
-    reader.onload = loaded;
-    reader.onerror = errorHandler;
-  }
-  
-  function updateProgress(evt) {
-  
-  }
-  
-  function loaded(evt) {
-    var fileString = evt.target.result;
-  
-    document.getElementById('privkey').value = fileString;
-    console.log('++++>='+document.getElementById('privkey').value);
-  }
-  
-  function errorHandler(evt) {
-    if(evt.target.error.name == "NotReadableError") {
-      // The file could not be read
-    }
-  }
-  </script> -->
-
 <script type="text/javascript">
 
 function send(encryptedval) {
@@ -236,8 +136,6 @@ function send(encryptedval) {
         var url = didText.substring(idx);
         var endIdx = url.indexOf('"');
         url = url.substring(0, endIdx);
-
-        //The following is temporary fix
         url = url.replace('https', 'http');
 
         console.log('url: ' + url);
@@ -259,12 +157,6 @@ function send(encryptedval) {
 
         document.getElementById('vctable').style.display = "block";
       }
-
-      // if (this.responseText == "vc-already-exist") {
-      //       alert('Verifiable credentials are already up to date.');
-      // } else {
-      //       document.getElementById("vctable").innerHTML = this.responseText;
-      // }
     }
   };
   xhttp.open("POST", "http://localhost:9097/authentication", true);
@@ -276,11 +168,6 @@ function load() {
   var uname = "";
   var xhttp = new XMLHttpRequest();
   var did = document.getElementById('didTxt').value;
-
-  // var n = did.indexOf("\"id\":");
-  // var mid = did.substring(n+16, n+80);
-  // console.log('mid:' + mid);
-
   var params = "command=authenticate&did=" + did; 
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
@@ -346,7 +233,7 @@ function loaded(evt) {
 
 function errorHandler(evt) {
   if(evt.target.error.name == "NotReadableError") {
-    // The file could not be read
+    console.log("The file could not be read");
   }
 }
 </script>

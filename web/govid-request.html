@@ -32,7 +32,7 @@ $(document).ready(function() {
     xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
       console.log('====>AAA:'+xhttp.responseText);
-      if (xhttp.responseText.equals('done')) {
+      if (xhttp.responseText === 'done') {
         alert("Registration Completed");
       }
       socket.send('KKKKKKKKKKKKKKKKKKK');
@@ -47,12 +47,9 @@ $(document).ready(function() {
   $('#chatLog, input, button, #examples').fadeOut("fast");
   $('<p>Oh no, you need a browser that supports WebSockets. How about <a href="http://www.google.com/chrome">Google Chrome</a>?</p>').appendTo('#container');
   }else{
-      //The user has WebSockets
-
       connect();
 
       function connect(){
-          //var socket;
           var host = "ws://localhost:9095/basic/ws";
 
           try{
@@ -103,9 +100,8 @@ $(document).ready(function() {
              socket.close();
           });
 
-      }//End connect
-
-  }//End else
+      }
+  }
  });
 
  $( function() {

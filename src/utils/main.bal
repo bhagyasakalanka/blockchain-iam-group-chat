@@ -1,4 +1,3 @@
-import ballerina/io;
 import ballerinax/java;
 
 
@@ -58,7 +57,3 @@ public function binaryStringToString(string v) returns string = @java:Method {
     name:"execute",
     class:"org/wso2/ballerina/utils/BinaryStringToString"
 } external;
-
-public function main() {
-    io:println("======>" + hexToChar("41"));
-}

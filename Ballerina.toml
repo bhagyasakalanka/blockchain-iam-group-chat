@@ -12,3 +12,9 @@ target = "java8"
     path = "/home/miyurud/git/ballerina-eth-utils/target/bin/utils.jar"
     groupId = "wso2"
     modules = ["utils"]
+
+    [[platform.libraries]]
+    artifactId = "abc"
+    path = "/home/miyurud/.m2/repository/mysql/mysql-connector-java/5.1.46/mysql-connector-java-5.1.46.jar"
+    groupId = "abc"
+    modules = ["utils", "issuer", "chat"]

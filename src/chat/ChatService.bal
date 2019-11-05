@@ -20,18 +20,16 @@ import ballerina/io;
 import ballerina/math;
 import wso2/utils;
 import ballerina/stringutils;
-import ballerina/runtime;
 
 listener http:Listener uiEP = new(9097);
 
 map<string> sessionMap = {};
 map<boolean> authenticatedMap = {};
-map<string> functionMap = {"miyurud@wso2.com": "0x6d4ce63c", "isurup@wso2.com": "0xc3d68039", "nadheesh@wso2.com": "0xe2a65ca2"};
 string chatBuffer = "";
 
-http:Client ethereumClient = new("http://192.168.32.1:8083");
+http:Client ethereumClient = new("http://192.168.32.1:8081");
 
-string ethereumAccount = "0x3dd551059b5ba2fd8fe48bf5699bd54eea46bd53"; 
+string ethereumAccount = "0x75ac4022fbe5ca5d3a8b8a0eb939143d7c1b7e6d";
 boolean verifiableCredentialsFlag = true;
 
 @http:ServiceConfig { basePath:"/" }
@@ -52,7 +50,7 @@ service uiService on uiEP {
         while (readableRecordsChannel.hasNext()) {
             var result = readableRecordsChannel.getNext();
             if (result is string[]) {
-                string item = (result[0]).toString();
+                string item = result[0];
                 buffer += item;
             } else {
                  io:println("Error");
@@ -165,35 +163,36 @@ service uiService on uiEP {
     if (requestVariableMap["command"] == "authenticate") {
             var did = requestVariableMap["did"] ?: "";
             did = stringutils:replace(did,"%2C", ",");
-            int index2 = did.indexOf("\"id\": \"did:ethr:") ?: 0 + 16;
+            int index2 = (did.indexOf("\"id\": \"did:ethr:") ?: 0) + 16;
             string didmid = did.substring(index2, index2+64);
 
-            index2 = did.indexOf("-----BEGIN PUBLIC KEY-----") ?: 0  + 26;
+            index2 = (did.indexOf("-----BEGIN PUBLIC KEY-----") ?: 0)  + 26;
 
             int index3 = did.indexOf("-----END PUBLIC KEY-----") ?: 0;
             var publicKey = did.substring(index2, index3);
 
             didmid = "0x" + didmid;
-            http:Request request = new;
-            request.setHeader("Content-Type", "application/json");
-            request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_getTransactionByHash", "params":[<@untainted> didmid]});
             
             string finalResult = "";
             string pkHash = "";
             boolean errorFlag = false;
-            var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_getTransactionByHash", "[]"));
+            http:Request request = new;
+            request.setHeader("Content-Type", "application/json");
+            request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_getTransactionByHash", "params":[<@untainted> didmid]});
+
+            var httpResponse = ethereumClient -> post("/", request);
 
             if (httpResponse is http:Response) {
                 int statusCode = httpResponse.statusCode;
                 var jsonResponse = httpResponse.getJsonPayload();
-                if (jsonResponse is map<json>[]) {
+                if (jsonResponse is map<json>) {
                         var res = jsonResponse;
-                        if (jsonResponse[0]["error"] == null) {
-                            finalResult = jsonResponse[0].result.toString();
-                            pkHash = jsonResponse[0].result.input.toString();
+                        if (jsonResponse["error"] == null) {
+                            finalResult = jsonResponse.result.toString();
+                            pkHash = jsonResponse.result.input.toString();
                         } else {
                                 error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
-                                finalResult = jsonResponse[0]["error"].toString();
+                                finalResult = jsonResponse["error"].toString();
                                 errorFlag = true;
                         }
                 } else {
@@ -233,11 +232,11 @@ service uiService on uiEP {
             var did = requestVariableMap["did"] ?: "";
             var encryptedval = requestVariableMap["encryptedval"] ?: "";
             did = stringutils:replace(did,"%2C", ",");
-            int index2 = did.indexOf("\"id\": \"did:ethr:") ?: 0 + 16;
+            int index2 = (did.indexOf("\"id\": \"did:ethr:") ?: 0) + 16;
 
             string didmid = did.substring(index2, index2+64);
 
-            index2 = did.indexOf("-----BEGIN PUBLIC KEY-----") ?: 0 + 26;
+            index2 = (did.indexOf("-----BEGIN PUBLIC KEY-----") ?: 0) + 26;
 
             int index3 = did.indexOf("-----END PUBLIC KEY-----") ?: 0;
             var publicKey = did.substring(index2, index3);
@@ -275,12 +274,20 @@ service uiService on uiEP {
             var did = requestVariableMap["did"] ?: "";
             var vc = requestVariableMap["vc"] ?: "";
 
-            int index2 = vc.indexOf("\"homeCountry\": {") ?: 0 + 41;
-            string didmid = vc.substring(index2, index2 + 64);
-            string hash = readHashFromBloackchain("0x" + didmid);
+            io:println("vc-:" + vc);
+            io:println("did:" + did);
 
-            index2 = hash.indexOf("\"input\":\"") ?: 0 + 9;
-            hash = hash.substring(index2, index2 + 66);
+            int index2 = (vc.indexOf("\"homeCountry\": {") ?: 0) + 33;
+            string didmid = vc.substring(index2, index2 + 66);
+            string hash = readHashFromBloackchain(didmid);
+
+            io:println("org-hash-:" + hash);
+
+            index2 = (vc.indexOf("\"value\": \"home country\"") ?: 0) + 51;
+            vc = vc.substring(index2);
+            int index3 = (vc.indexOf("\",\"lang\":") ?: 0) ;
+            string countryStr = vc.substring(0, index3);
+
             string hexEncodedString = "0x" + utils:hashSHA256("USA");
             string buffer2 = "";
             string hostname = "localhost";
@@ -362,19 +369,16 @@ service basic on new http:Listener(9098) {
         io:println("Is connection open: " + caller.isOpen().toString());
         io:println("Is connection secured: " + caller.isSecure().toString());
 
-        while(true) {
+        if (!stringutils:equalsIgnoreCase(chatBuffer ,"")) {
             var err = caller->pushText(chatBuffer);
             if (err is error) {
                 log:printError("Error occurred when sending text", err = err);
             }
-            runtime:sleep(1000);
         }
     }
 
-    resource function onText(http:WebSocketCaller caller, string text,
-                                boolean finalFrame) {
-        io:println("\ntext message: " + text + " & final fragment: "
-                                                        + finalFrame.toString());
+    resource function onText(http:WebSocketCaller caller, string text) {
+        io:println("\ntext message: " + text);
 
         if (text == "ping") {
             io:println("Pinging...");
@@ -390,10 +394,12 @@ service basic on new http:Listener(9098) {
                 log:printError("Error occurred when closing connection", <error> result);
             }
         } else {
-            chatBuffer += text + "\r\n";
-            var err = caller->pushText(chatBuffer);
-            if (err is error) {
-                log:printError("Error occurred when sending text", err = err);
+            if (!(text === "undefined")) {
+                chatBuffer += text + "\r\n";
+                var err = caller->pushText(chatBuffer);
+                if (err is error) {
+                    log:printError("Error occurred when sending text", err = err);
+                }
             }
         }
     }
@@ -440,8 +446,6 @@ service basic on new http:Listener(9098) {
     }
 }
 
-
-
 public function convertHexStringToString(string inputString) returns (string) {
     int len = inputString.toString().length();
     int counter = 0;
@@ -483,26 +487,25 @@ public function generateRandomKey(int keyLen) returns (string){
 }
 
 public function readHashFromBloackchain(string didmid) returns (string) {
-            http:Request request = new;
-            request.setHeader("Content-Type", "application/json");
-            request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_getTransactionByHash", "params":[<@untainted> didmid]});
-            
             string finalResult = "";
             string pkHash = "";
             boolean errorFlag = false;
-            var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_getTransactionByHash", "[]"));
+            http:Request request = new;
+            request.setHeader("Content-Type", "application/json");
+            request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_getTransactionByHash", "params":[<@untainted> didmid]});
+
+            var httpResponse = ethereumClient -> post("/", request);
 
             if (httpResponse is http:Response) {
                 int statusCode = httpResponse.statusCode;
                 var jsonResponse = httpResponse.getJsonPayload();
-                if (jsonResponse is map<json>[]) {
-                    if (jsonResponse[0]["error"] == null) {
-                        finalResult = jsonResponse[0].result.toString();
-
-                        pkHash = jsonResponse[0].result.toString();
+                if (jsonResponse is map<json>) {
+                    if (jsonResponse["error"] == null) {
+                        finalResult = jsonResponse.result.input.toString();
+                        pkHash = jsonResponse.result.input.toString();
                     } else {
                             error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
-                            finalResult = jsonResponse[0]["error"].toString();
+                            finalResult = jsonResponse["error"].toString();
                             errorFlag = true;
                     }
                 } else {
@@ -518,25 +521,26 @@ public function readHashFromBloackchain(string didmid) returns (string) {
             return finalResult;
 }
 
-function constructRequest(string jsonRPCVersion, int networkId, string method, json params) returns http:Request {
+function constructRequest(string jsonRPCVersion, int networkId, string method, json pars) returns http:Request {
     http:Request request = new;
     request.setHeader("Content-Type", "application/json");
     json payload = {};
-    if (params == "[]") {
+    if (pars == "[]") {
         payload = {
-            jsonrpc: jsonRPCVersion, 
-            method: method, 
-            params: [], 
+            jsonrpc: jsonRPCVersion,
+            method: method,
+            params: [],
             id: networkId
         };
     } else {
         payload = {
-            jsonrpc: jsonRPCVersion, 
-            method: method, 
-            params: params, 
+            jsonrpc: jsonRPCVersion,
+            method: method,
+            params: pars,
             id: networkId
         };
     }
+    io:println(payload);
     request.setJsonPayload(payload);
     return request;
 }

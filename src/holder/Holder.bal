@@ -24,8 +24,6 @@ import wso2/utils;
 import ballerina/stringutils;
 import ballerina/file;
 
-
-
 listener http:Listener uiHolderLogin = new(9091);
 
 map<string> sessionMap = {};
@@ -34,11 +32,10 @@ map<string> userMap = {"alice": "123"};
 string chatBuffer = "";
 string pk = "";
 string verifiableCredentialsRepositoryURL = "https://localhost:9091/vc/";
-string ethereumAccount = "0x3dd551059b5ba2fd8fe48bf5699bd54eea46bd53";
+string ethereumAccount = "0x75ac4022fbe5ca5d3a8b8a0eb939143d7c1b7e6d";
+string ethereumAccountPass = "123";
 
-final string WEB3_CLIENT_VERSION = "web3_clientVersion";
-
-http:Client ethereumClient = new("http://192.168.32.1:8083");
+http:Client ethereumClient = new("http://192.168.32.1:8081");
 
 jdbc:Client ssiDB = new({
         url: "jdbc:mysql://192.168.32.1:3306/ssidb",
@@ -46,6 +43,26 @@ jdbc:Client ssiDB = new({
         password: "test",
         dbOptions: { useSSL: false }
 });
+
+type HolderRecord record {
+    string id;
+    string issuer;
+    string name;
+};
+
+type VCRecord record {
+    string vctxt;
+};
+
+type FullVCRecord record {
+    string id;
+    string issuer;
+    string name;
+};
+
+type NameRecord record {
+    string name;
+};
 
 string holderRepo = "/var/tmp/iam/holder/alice";
 
@@ -100,8 +117,8 @@ service uiServiceHolderLogin on uiHolderLogin {
         string password = requestVariableMap["pwd"]  ?: "";
         var authenticated = false;
 
-        foreach var x in userMap {
-            if (stringutils:equalsIgnoreCase(username,x[0]) && stringutils:equalsIgnoreCase(password,x[1])) {
+        foreach var [k, v] in userMap.entries() {
+            if (stringutils:equalsIgnoreCase(username, k) && stringutils:equalsIgnoreCase(password, v)) {
                 io:println("Welcome " + username);
                 authenticatedMap[username] = true;
                 var result = caller->respond("success");
@@ -135,7 +152,7 @@ service uiServiceHolderLogin on uiHolderLogin {
    resource function displayLoginPage2(http:Caller caller, http:Request req) returns error? {
         string username = req.getQueryParamValue("username") ?: "";
         boolean fileExists = file:exists(holderRepo + "/did.json");
-        if(fileExists.toString() == "-1") {
+        if(!fileExists) {
             if ((!(stringutils:equalsIgnoreCase(username,""))) && authenticatedMap[username] == true) {
                     var buffer = readFile("web/holder-homepage-no-did.html");
 
@@ -184,9 +201,9 @@ service uiServiceHolderLogin on uiHolderLogin {
                         if ((!(stringutils:equalsIgnoreCase(username,""))) && authenticatedMap[username] == true) {
                     var buffer = readFile("web/holder-homepage-with-did.html");
                     var didTxt = readFile(holderRepo + "/did.json");
-                    http:Response res = new;
 
-                    int index = didTxt.indexOf("\"id\": \"did:ethr:") ?: 0 + 16;                  
+                    http:Response res = new;
+                    int index = (didTxt.indexOf("\"id\": \"did:ethr:") ?: 0) + 16;
                     string didmid = didTxt.substring(index, index+64);
 
                     if (caller.localAddress.host != "") {
@@ -217,7 +234,6 @@ service uiServiceHolderLogin on uiHolderLogin {
                     }
                      buffer = stringutils:replace(buffer,"MSG", "Re-try login via : <a href='http://" + caller.localAddress.host + ":9091'>Login Page</a>");
 
-
                     http:Response res = new;
                     res.setPayload(<@untainted> buffer);
                     res.setContentType("text/html; charset=utf-8");
@@ -246,33 +262,34 @@ service uiServiceHolderLogin on uiHolderLogin {
         string username = req.getQueryParamValue("username") ?: "";
         string did = req.getQueryParamValue("did") ?: "";
 
-        var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
+        io:println("select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');");
+
+        var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", HolderRecord);
         string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
 
-        if (selectRet is table<record {}>) {
-            var jsonConversionRet = json.constructFrom(selectRet);
-            if (jsonConversionRet is map<json>[]) {
-                int l = jsonConversionRet.toJsonString().length();
-                int i = 0;
-                if (l == 0) {
-                    tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
-                } else {
-                    tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th></tr>";
-                    while (i < l) {
-                        tbl = tbl + "<tr><td><a href=\"#\" onclick=\"showVC('" + jsonConversionRet[i]["id"].toJsonString() + "');\">";
-                        tbl = tbl + jsonConversionRet[i]["id"].toString();
-                        tbl = tbl + "</a></td><td>";
-                        tbl = tbl + jsonConversionRet[i]["name"].toString();
-                        
-                        tbl = tbl + "</td><td>";
-                        tbl = tbl + jsonConversionRet[i]["issuer"].toString();
-                        i = i + 1;
-                    }
-                    tbl += "</td></tr></table>";
-                }
-            } else {
-                io:println("Error in table to json conversion");
-            }
+        if (selectRet is table<HolderRecord>) {
+            if (!selectRet.hasNext())
+             {
+                tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
+             } else {
+                 tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th></tr>";
+
+                 while (selectRet.hasNext()) {
+                         var ret = selectRet.getNext();
+                         if (ret is HolderRecord) {
+                            tbl = tbl + "<tr><td><a href=\"#\" onclick=\"showVC('" + ret.id.toString() + "');\">";
+                            tbl = tbl + ret.id.toString();
+                            tbl = tbl + "</a></td><td>";
+                            tbl = tbl + ret.name;
+
+                            tbl = tbl + "</td><td>";
+                            tbl = tbl + ret.issuer;
+                         } else {
+                             io:println("Error in get HolderRecord from table");
+                         }
+                 }
+                 tbl += "</td></tr></table>";
+             }
         } else {
             io:println("Select data from vclist table failed");
         }
@@ -281,7 +298,7 @@ service uiServiceHolderLogin on uiHolderLogin {
             var buffer = readFile("web/holder-homepage-vc.html");
             var didTxt = "";
             boolean fileExists = file:exists(holderRepo + "/did.json");
-            if(fileExists.toString() == "-1") {
+            if(!fileExists) {
                 
         	    io:println("Cannot find the DID file.");
 	        } else {
@@ -349,33 +366,30 @@ service uiServiceHolderLogin on uiHolderLogin {
    resource function listVC(http:Caller caller, http:Request req) returns error? {
         map<string> requestVariableMap = check req.getFormParams();
         string did = requestVariableMap["did"]  ?: "";
-        io:println("did:" + did);
-        var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
+        var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", FullVCRecord);
         string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
 
-        if (selectRet is table<record {}>) {
-            var jsonConversionRet = json.constructFrom(selectRet);
-            if (jsonConversionRet is map<json>[]) {
-                int l = jsonConversionRet.toJsonString().length();
-                int i = 0;
-                if (l == 0) {
-                    tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
-                } else {
-                    tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th><th>&nbsp;</th></tr>";
-                    while (i < l) {
-                        tbl = tbl + "<tr><td><a href=\"#\" onclick=\"showVC('" + jsonConversionRet[i]["id"].toString() + "');\">";
-                        tbl = tbl + jsonConversionRet[i]["id"].toString();
-                        tbl = tbl + "</a></td><td>";
-                        tbl = tbl + jsonConversionRet[i]["name"].toString();
-                        tbl = tbl + "</td><td>";
-                        tbl = tbl + jsonConversionRet[i]["issuer"].toString();
-                        tbl = tbl + "</td><td><input type=\"checkbox\" id=\"" + jsonConversionRet[i]["id"].toString()  + "\" name=\"vcselect\"\\>";
-                        i = i + 1;
-                    }
-                    tbl += "</td></tr></table><br/><input id=\"vc-btn\" type=\"button\" value=\"Submit VC\" onclick=\"submitVC()\">";
-                }
+        if (selectRet is table<FullVCRecord>) {
+
+            if (!selectRet.hasNext()) {
+                tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
             } else {
-                io:println("Error in table to json conversion");
+                tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th><th>&nbsp;</th></tr>";
+                while (selectRet.hasNext()) {
+                    var ret = selectRet.getNext();
+                    if (ret is FullVCRecord) {
+                        tbl = tbl + "<tr><td><a href=\"#\" onclick=\"showVC('" + ret.id.toString() + "');\">";
+                        tbl = tbl + ret.id.toString();
+                        tbl = tbl + "</a></td><td>";
+                        tbl = tbl + ret.name;
+                        tbl = tbl + "</td><td>";
+                        tbl = tbl + ret.issuer;
+                        tbl = tbl + "</td><td><input type=\"checkbox\" id=\"" + ret.id.toString()  + "\" name=\"vcselect\"\\>";
+                    } else {
+                        io:println("Error in get HolderRecord from table");
+                    }
+                }
+                tbl += "</td></tr></table><br/><input id=\"vc-btn\" type=\"button\" value=\"Submit VC\" onclick=\"submitVC()\">";
             }
         } else {
             io:println("Select data from vclist table failed");
@@ -431,8 +445,6 @@ service uiServiceHolderLogin on uiHolderLogin {
                         log:printError("Error sending response", err = result);
                 }
             } else {
-
-            io:println("Error in holder.bal######--->"+finalResult);        
             finalResult = finalResult.substring(2, 66);
 
             var templateDID = "{" +
@@ -484,16 +496,16 @@ service uiServiceHolderLogin on uiHolderLogin {
             string issuerVC = requestVariableMap["issuerVC"]  ?: "";
             string nameVC = requestVariableMap["nameVC"]  ?: "";
             string vcTxt = requestVariableMap["vcTxt"]  ?: "";
-            var selectRet = ssiDB->select(<@untainted> "select name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
+            var selectRet = ssiDB->select(<@untainted> "select name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", NameRecord);
 
             string name2 = "";
 
-            if (selectRet is table<record {}>) {
+            if (selectRet is table<NameRecord>) {
                 if (selectRet.hasNext()) {
-                    var jsonConversionRet = json.constructFrom(selectRet);
+                    var jsonConversionRet = selectRet.getNext();
                     
-                    if (jsonConversionRet is map<json>[]) {
-                        name2 = jsonConversionRet[0]["name"].toString();
+                    if (jsonConversionRet is NameRecord) {
+                        name2 = jsonConversionRet.name;
 
                         if (nameVC === name2) {
                             http:Response res = new;
@@ -519,41 +531,33 @@ service uiServiceHolderLogin on uiHolderLogin {
             vcTxt = stringutils:replace(vcTxt,"'","''");
             var ret = ssiDB->update(<@untainted> ("insert into ssidb.vclist(did, id, issuer, name, vctext) " + "values ('"+ did +"', '" + didVC.substring(2, didVC.length()) + "', '" + issuerVC + "', '"+ nameVC +"', '" + vcTxt + "');"));
      
-            var selectRet2 = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", ());
+            var selectRet2 = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", HolderRecord);
                 string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
 
-                if (selectRet2 is table<record {}>) {
-                    io:println("\nConvert the table into json3");
-                    var jsonConversionRet = json.constructFrom(selectRet2);
-                    if (jsonConversionRet is map<json>[]) {
-                        io:println(io:sprintf("%s", jsonConversionRet));
-
-                        int l = jsonConversionRet.toJsonString().length();
-                        io:print("len l: " + l.toString());
-                        int i = 0;
-                        if (l == 0) {
-                            tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
-                        } else {
-                            tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th></tr>";
-                            while (i < l) {
-                                tbl = tbl + "<tr><td>";
-                                tbl = tbl + jsonConversionRet[i]["id"].toString();
-                                tbl = tbl + "</td><td>";
-                                tbl = tbl + jsonConversionRet[i]["name"].toString();
-                                tbl = tbl + "</td><td>";
-                                tbl = tbl + jsonConversionRet[i]["issuer"].toString();
-                                i = i + 1;
-                            }
-                            tbl += "</td></tr></table>";
-                        }
-                    } else {
-                        io:println("Error in table to json conversion");
-                    }
+            if (selectRet2 is table<HolderRecord>) {
+                if (!selectRet2.hasNext()) {
+                    tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><td>No Verifiable Credentials found for this DID</td></tr></table>";
                 } else {
-                    io:println("Select data from vclist table failed");
+                    tbl = "<table border=\"1px\" cellspacing=\"0\" cellpadding=\"3\"><tr><th>Verifiable Cerdential's DID</th><th>Name</th><th>Issuer</th></tr>";
+
+                     while (selectRet2.hasNext()) {
+                             var ret2 = selectRet2.getNext();
+                             if (ret2 is HolderRecord) {
+                                 tbl = tbl + "<tr><td>";
+                                 tbl = tbl + ret2.id;
+                                 tbl = tbl + "</td><td>";
+                                 tbl = tbl + ret2.name;
+                                 tbl = tbl + "</td><td>";
+                                 tbl = tbl + ret2.issuer;
+                             } else {
+                                 io:println("Error in get HolderRecord from table");
+                             }
+                     }
+                     tbl += "</td></tr></table>";
                 }
-
-
+            } else {
+                io:println("Select data from vclist table failed");
+            }
 
             http:Response res = new;
             res.setPayload(<@untainted> tbl);
@@ -568,17 +572,16 @@ service uiServiceHolderLogin on uiHolderLogin {
             }
         } else if (requestVariableMap["command"] == "cmd3") {
             string id = requestVariableMap["id"]  ?: "";
-            var selectRet = ssiDB->select(<@untainted> "select vctext from ssidb.vclist where (id LIKE '"+ <@untainted> id +"');", ());
+            var selectRet = ssiDB->select(<@untainted> "select vctext from ssidb.vclist where (id LIKE '"+ <@untainted> id +"');", VCRecord);
             
             string vcText = "no-vc-for-this-did";
 
-            if (selectRet is table<record {}>) {
+            if (selectRet is table<VCRecord>) {
                 if (selectRet.hasNext()) {
-                    var jsonConversionRet = json.constructFrom(selectRet);
-                    
-                    if (jsonConversionRet is map<json>[]) {
-                        vcText = jsonConversionRet[0]["vctext"].toString();
-                    }
+                     var ret2 = selectRet.getNext();
+                     if (ret2 is VCRecord) {
+                         vcText = ret2.vctxt;
+                     }
                 } else {
                     //The result is empty
                 }
@@ -844,12 +847,14 @@ public function readFile(string filePath) returns string {
         io:ReadableCharacterChannel | io:Error readableCharChannel = new io:ReadableCharacterChannel(readableByteChannel, "UTF-8");
 
         if (readableCharChannel is io:ReadableCharacterChannel) {
-            var readableRecordsChannel = new io:ReadableTextRecordChannel(readableCharChannel, fs = ",", rs = "\n");
+            var readableRecordsChannel = new io:ReadableTextRecordChannel(readableCharChannel, fs = ",,,", rs = "\n");
             while (readableRecordsChannel.hasNext()) {
                 var result = readableRecordsChannel.getNext();
                 if (result is string[]) {
-                    string item = <@untainted>result[0].toString();
-                    buffer += item;
+                    foreach var v in result {
+                        string item = <@untainted>v.toString();
+                        buffer += item;
+                    }
                 } else {
                     io:println("Error");
                 }
@@ -860,24 +865,22 @@ public function readFile(string filePath) returns string {
 }
 
 public function sendTransactionAndgetHash(string data) returns (string) {
-                http:Request request2 = new;
-            request2.setHeader("Content-Type", "application/json");
-            request2.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"personal_unlockAccount", "params": [ethereumAccount,"1234",null]});
-
             string finalResult2 = "";
             boolean errorFlag2 = false;
-            var httpResponse2 = ethereumClient -> post("/", constructRequest("2.0", 2000, "personal_unlockAccount", "[]"));
+            var httpResponse2 = ethereumClient -> post("/", constructRequest("2.0", 2000, "personal_unlockAccount", [ethereumAccount, ethereumAccountPass, null]));
 
             if (httpResponse2 is http:Response) {
                 int statusCode = httpResponse2.statusCode;
+                string|error s = httpResponse2.getTextPayload();
                 var jsonResponse = httpResponse2.getJsonPayload();
-                if (jsonResponse is map<json>[]) {
-                    if (jsonResponse[0]["error"] == null) {
-                        finalResult2 = jsonResponse[0].result.toString();
+
+                if (jsonResponse is map<json>) {
+                    if (jsonResponse["error"] == null) {
+                        finalResult2 = jsonResponse.result.toString();
                     } else {
                             error err = error("(wso2/ethereum)EthereumError",
                                                 message="Error occurred while accessing the JSON payload of the response");
-                            finalResult2 = jsonResponse[0]["error"].toString();
+                            finalResult2 = jsonResponse["error"].toString();
                             errorFlag2 = true;
                     }
                 } else {
@@ -895,24 +898,20 @@ public function sendTransactionAndgetHash(string data) returns (string) {
             byte[] hexEncodedString2 =  crypto:hashSha256(data.toBytes());
             io:println("Hash with SHA256: " + hexEncodedString2.toBase16());
 
-            //Next we will write the blockchain record
-            http:Request request = new;
-            request.setHeader("Content-Type", "application/json");
-            request.setJsonPayload({"jsonrpc":"2.0", "id":"2000", "method":"eth_sendTransaction", "params":[{"from": ethereumAccount, "to":"0x6814412628addef8989ee696a67b0fad5d62735e", "data": hexEncodedString}]});
-
             string finalResult = "";
             boolean errorFlag = false;
-            var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_sendTransaction", "[]"));
+
+            var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_sendTransaction", [ {"from": ethereumAccount,  "data": hexEncodedString }]));
 
             if (httpResponse is http:Response) {
                 int statusCode = httpResponse.statusCode;
                 var jsonResponse = httpResponse.getJsonPayload();
-                if (jsonResponse is map<json>[]) {
-                    if (jsonResponse[0]["error"] == null) {
-                        finalResult = jsonResponse[0].result.toString();
+                if (jsonResponse is map<json>) {
+                    if (jsonResponse["error"] == null) {
+                        finalResult = jsonResponse.result.toString();
                     } else {
                             error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
-                            finalResult = jsonResponse[0]["error"].toString();
+                            finalResult = jsonResponse["error"].toString();
                             errorFlag = true;
                     }
                 } else {
@@ -928,11 +927,11 @@ public function sendTransactionAndgetHash(string data) returns (string) {
             return finalResult;
 }
 
-function constructRequest(string jsonRPCVersion, int networkId, string method, json params) returns http:Request {
+function constructRequest(string jsonRPCVersion, int networkId, string method, json pars) returns http:Request {
     http:Request request = new;
     request.setHeader("Content-Type", "application/json");
     json payload = {};
-    if (params == "[]") {
+    if (pars == "[]") {
         payload = {
             jsonrpc: jsonRPCVersion, 
             method: method, 
@@ -943,10 +942,11 @@ function constructRequest(string jsonRPCVersion, int networkId, string method, j
         payload = {
             jsonrpc: jsonRPCVersion, 
             method: method, 
-            params: params, 
+            params: pars,
             id: networkId
         };
     }
+    io:println(payload);
     request.setJsonPayload(payload);
     return request;
 }
