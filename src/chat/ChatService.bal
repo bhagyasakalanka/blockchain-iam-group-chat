@@ -246,11 +246,9 @@ service uiService on uiEP {
             string randKey = sessionMap[didmid] ?: "";
 
             if (encryptedval === randKey) {
-                io:println("Challenge response authentication was successful.");
                 var finalResult = "successful";
 
                 if(verifiableCredentialsFlag) {
-                    io:println("Require verifiable credentials.");
                     finalResult = "successful|CountryCredential"; //Here we assume that chat service requires CountryCredential only.
                 }
 
@@ -274,14 +272,9 @@ service uiService on uiEP {
             var did = requestVariableMap["did"] ?: "";
             var vc = requestVariableMap["vc"] ?: "";
 
-            io:println("vc-:" + vc);
-            io:println("did:" + did);
-
             int index2 = (vc.indexOf("\"homeCountry\": {") ?: 0) + 33;
             string didmid = vc.substring(index2, index2 + 66);
             string hash = readHashFromBloackchain(didmid);
-
-            io:println("org-hash-:" + hash);
 
             index2 = (vc.indexOf("\"value\": \"home country\"") ?: 0) + 51;
             vc = vc.substring(index2);
@@ -298,8 +291,6 @@ service uiService on uiEP {
             } else {
                 buffer2 = "http://" + hostname + ":9097";
             }
-
-            io:println(buffer2);
 
             http:Response res = new;
             res.setPayload(<@untainted> buffer2);
@@ -540,7 +531,7 @@ function constructRequest(string jsonRPCVersion, int networkId, string method, j
             id: networkId
         };
     }
-    io:println(payload);
+
     request.setJsonPayload(payload);
     return request;
 }

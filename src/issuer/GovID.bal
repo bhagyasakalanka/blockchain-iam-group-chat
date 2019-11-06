@@ -40,7 +40,7 @@ string chatBuffer = "";
 string pk = "";
 string randomKey = "";
 
-string ethereumAccount = "0x75ac4022fbe5ca5d3a8b8a0eb939143d7c1b7e6d"; //"0xd30e0d197c129135c81ee46bf4e461020d91a9ef";
+string ethereumAccount = "0x75ac4022fbe5ca5d3a8b8a0eb939143d7c1b7e6d";
 string ethereumAccountPass = "123";
 http:Client ethereumClient = new ("http://192.168.32.1:8081");
 
@@ -102,7 +102,6 @@ service uiServiceGovIDLogin on uiGovIDLogin {
 
         foreach var [k, v] in userMap.entries() {
             if (stringutils:equalsIgnoreCase(username, k) && stringutils:equalsIgnoreCase(password, v)) {
-                io:println("Welcome " + username);
                 authenticatedMap[username] = true;
                 var result = caller->respond("success");
                 if (result is error) {
@@ -695,9 +694,6 @@ public function sendTransactionAndgetHash(string data) returns (string) {
                 int statusCode = httpResponse2.statusCode;
                 string|error s = httpResponse2.getTextPayload();
                 var jsonResponse = httpResponse2.getJsonPayload();
-
-                io:println(s);
-                io:println(jsonResponse);
 
                 if (jsonResponse is map<json>) {
                     if (jsonResponse["error"] == null) {

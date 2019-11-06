@@ -119,7 +119,6 @@ service uiServiceHolderLogin on uiHolderLogin {
 
         foreach var [k, v] in userMap.entries() {
             if (stringutils:equalsIgnoreCase(username, k) && stringutils:equalsIgnoreCase(password, v)) {
-                io:println("Welcome " + username);
                 authenticatedMap[username] = true;
                 var result = caller->respond("success");
                 if (result is error) {
@@ -261,8 +260,6 @@ service uiServiceHolderLogin on uiHolderLogin {
    resource function displayLoginPage3(http:Caller caller, http:Request req) returns error? {
         string username = req.getQueryParamValue("username") ?: "";
         string did = req.getQueryParamValue("did") ?: "";
-
-        io:println("select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');");
 
         var selectRet = ssiDB->select(<@untainted> "select id, issuer, name from ssidb.vclist where (did LIKE '"+ <@untainted> did +"');", HolderRecord);
         string tbl = "<table><tr><td>No Verifiable credentials associated with your account yet.";
@@ -896,7 +893,6 @@ public function sendTransactionAndgetHash(string data) returns (string) {
             string hexEncodedString = "0x" + utils:hashSHA256(data);//encoding:encodeHex(output);
             
             byte[] hexEncodedString2 =  crypto:hashSha256(data.toBytes());
-            io:println("Hash with SHA256: " + hexEncodedString2.toBase16());
 
             string finalResult = "";
             boolean errorFlag = false;
@@ -946,7 +942,7 @@ function constructRequest(string jsonRPCVersion, int networkId, string method, j
             id: networkId
         };
     }
-    io:println(payload);
+
     request.setJsonPayload(payload);
     return request;
 }
