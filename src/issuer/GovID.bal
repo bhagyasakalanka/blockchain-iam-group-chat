@@ -181,66 +181,6 @@ service uiServiceGovIDLogin on uiGovIDLogin {
    }
 
     @http:ResourceConfig {
-        methods:["GET"],
-        path:"/govid-request.css",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendGOVIDRequest(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/govid-request.css", contentType = "text/css");
-       res.setContentType("text/css; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
-        methods:["GET"],
-        path:"/bundle.js",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendBundle(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/bundle.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
-        methods:["GET"],
-        path:"/FileSaver.js",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendFileSaver(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/FileSaver.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
         methods:["POST"],
         path:"/submit",
         cors: {
@@ -473,8 +413,7 @@ byte[] pingData = ping.toBytes();
 
 @http:WebSocketServiceConfig {
     path: "/basic/ws",
-    subProtocols: ["xml", "json"],
-    idleTimeoutInSeconds: 120
+    subProtocols: ["xml", "json"]
 }
 service basic on new http:Listener(9095) {
     resource function onOpen(http:WebSocketCaller caller) {
@@ -537,17 +476,6 @@ service basic on new http:Listener(9095) {
 
     resource function onPong(http:WebSocketCaller caller, byte[] data) {
         io:println("Pong received");
-    }
-
-    resource function onIdleTimeout(http:WebSocketCaller caller) {
-        io:println("\nReached idle timeout");
-
-        io:println("Closing connection " + caller.getConnectionId());
-        var err = caller->close(statusCode = 1001, reason =
-                                    "Connection timeout");
-        if (err is http:WebSocketError) {
-            log:printError("Error occurred when closing the connection", <error> err);
-        }
     }
 
     resource function onError(http:WebSocketCaller caller, error err) {

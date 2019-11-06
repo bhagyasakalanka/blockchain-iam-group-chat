@@ -102,53 +102,6 @@ service uiService on uiEP {
    }
 
    @http:ResourceConfig {
-        methods:["GET"],
-        path:"/jsencrypt.js"
-    }
-   resource function sendJSEncrypt(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/jsencrypt.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-   @http:ResourceConfig {
-        methods:["GET"],
-        path:"/browser-aes.js"
-    }
-   resource function sendJSBrowser(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/browser-aes.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-
-   @http:ResourceConfig {
-        methods:["GET"],
-        path:"/bg.jpg"
-    }
-   resource function sendBGImage(http:Caller caller, http:Request req) {
-       http:Response res = new;
-       res.setFileAsPayload("web/images/bg.jpg", contentType = "image/jpeg");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-   @http:ResourceConfig {
         methods:["POST"],
         path:"/authentication",
         cors: {
@@ -349,8 +302,7 @@ byte[] pingData = ping.toBytes();
 
 @http:WebSocketServiceConfig {
     path: "/basic/ws",
-    subProtocols: ["xml", "json"],
-    idleTimeoutInSeconds: 120
+    subProtocols: ["xml", "json"]
 }
 service basic on new http:Listener(9098) {
     resource function onOpen(http:WebSocketCaller caller) {
@@ -414,16 +366,6 @@ service basic on new http:Listener(9098) {
 
     resource function onPong(http:WebSocketCaller caller, byte[] data) {
         io:println("Pong received");
-    }
-
-    resource function onIdleTimeout(http:WebSocketCaller caller) {
-        io:println("\nReached idle timeout");
-        io:println("Closing connection " + caller.getConnectionId());
-        var err = caller->close(statusCode = 1001, reason =
-                                    "Connection timeout");
-        if (err is http:WebSocketError) {
-            log:printError("Error occurred when closing the connection", <error> err);
-        }
     }
 
     resource function onError(http:WebSocketCaller caller, error err) {

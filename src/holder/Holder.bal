@@ -601,102 +601,6 @@ service uiServiceHolderLogin on uiHolderLogin {
 
     @http:ResourceConfig {
         methods:["GET"],
-        path:"/govid-request.css",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendGOVIDCSS(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/govid-request.css", contentType = "text/css");
-       res.setContentType("text/css; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
-        methods:["GET"],
-        path:"/home/bundle.js",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendBundle(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/bundle.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
-        methods:["GET"],
-        path:"/FileSaver.js",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendFileSaver(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/FileSaver.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
-        methods:["GET"],
-        path:"/jsencrypt.js",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
-    }
-   resource function sendJSEncrypt(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/jsencrypt.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-      @http:ResourceConfig {
-        methods:["GET"],
-        path:"/browser-aes.js"
-    }
-   resource function sendBrowserAES(http:Caller caller, http:Request req) {
-       http:Response res = new;
-
-       res.setFileAsPayload("web/browser-aes.js", contentType = "text/javascript");
-       res.setContentType("text/javascript; charset=utf-8");
-
-       var result = caller->respond(res);
-       if (result is error) {
-            log:printError("Error sending response", err = result);
-       }
-   }
-
-    @http:ResourceConfig {
-        methods:["GET"],
         path:"/logout",
         cors: {
             allowOrigins: ["*"],
@@ -862,65 +766,65 @@ public function readFile(string filePath) returns string {
 }
 
 public function sendTransactionAndgetHash(string data) returns (string) {
-            string finalResult2 = "";
-            boolean errorFlag2 = false;
-            var httpResponse2 = ethereumClient -> post("/", constructRequest("2.0", 2000, "personal_unlockAccount", [ethereumAccount, ethereumAccountPass, null]));
+    string finalResult2 = "";
+    boolean errorFlag2 = false;
+    var httpResponse2 = ethereumClient -> post("/", constructRequest("2.0", 2000, "personal_unlockAccount", [ethereumAccount, ethereumAccountPass, null]));
 
-            if (httpResponse2 is http:Response) {
-                int statusCode = httpResponse2.statusCode;
-                string|error s = httpResponse2.getTextPayload();
-                var jsonResponse = httpResponse2.getJsonPayload();
+    if (httpResponse2 is http:Response) {
+        int statusCode = httpResponse2.statusCode;
+        string|error s = httpResponse2.getTextPayload();
+        var jsonResponse = httpResponse2.getJsonPayload();
 
-                if (jsonResponse is map<json>) {
-                    if (jsonResponse["error"] == null) {
-                        finalResult2 = jsonResponse.result.toString();
-                    } else {
-                            error err = error("(wso2/ethereum)EthereumError",
-                                                message="Error occurred while accessing the JSON payload of the response");
-                            finalResult2 = jsonResponse["error"].toString();
-                            errorFlag2 = true;
-                    }
-                } else {
-                    error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
-                        finalResult2 = "Error occurred while accessing the JSON payload of the response";
-                        errorFlag2 = true;
-                    }
+        if (jsonResponse is map<json>) {
+            if (jsonResponse["error"] == null) {
+                finalResult2 = jsonResponse.result.toString();
             } else {
-                error err = error("(wso2/ethereum)EthereumError", message="Error occurred while invoking the Ethererum API");
+                    error err = error("(wso2/ethereum)EthereumError",
+                                        message="Error occurred while accessing the JSON payload of the response");
+                    finalResult2 = jsonResponse["error"].toString();
+                    errorFlag2 = true;
+            }
+        } else {
+            error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
+                finalResult2 = "Error occurred while accessing the JSON payload of the response";
                 errorFlag2 = true;
             }
+    } else {
+        error err = error("(wso2/ethereum)EthereumError", message="Error occurred while invoking the Ethererum API");
+        errorFlag2 = true;
+    }
 
-            string hexEncodedString = "0x" + utils:hashSHA256(data);//encoding:encodeHex(output);
-            
-            byte[] hexEncodedString2 =  crypto:hashSha256(data.toBytes());
+    string hexEncodedString = "0x" + utils:hashSHA256(data);//encoding:encodeHex(output);
 
-            string finalResult = "";
-            boolean errorFlag = false;
+    byte[] hexEncodedString2 =  crypto:hashSha256(data.toBytes());
 
-            var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_sendTransaction", [ {"from": ethereumAccount,  "data": hexEncodedString }]));
+    string finalResult = "";
+    boolean errorFlag = false;
 
-            if (httpResponse is http:Response) {
-                int statusCode = httpResponse.statusCode;
-                var jsonResponse = httpResponse.getJsonPayload();
-                if (jsonResponse is map<json>) {
-                    if (jsonResponse["error"] == null) {
-                        finalResult = jsonResponse.result.toString();
-                    } else {
-                            error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
-                            finalResult = jsonResponse["error"].toString();
-                            errorFlag = true;
-                    }
-                } else {
-                    error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
-                    finalResult = "Error occurred while accessing the JSON payload of the response";
-                    errorFlag = true;
-                }
+    var httpResponse = ethereumClient -> post("/", constructRequest("2.0", 2000, "eth_sendTransaction", [ {"from": ethereumAccount,  "data": hexEncodedString }]));
+
+    if (httpResponse is http:Response) {
+        int statusCode = httpResponse.statusCode;
+        var jsonResponse = httpResponse.getJsonPayload();
+        if (jsonResponse is map<json>) {
+            if (jsonResponse["error"] == null) {
+                finalResult = jsonResponse.result.toString();
             } else {
-                error err = error("(wso2/ethereum)EthereumError", message="Error occurred while invoking the Ethererum API");
-                errorFlag = true;
+                    error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
+                    finalResult = jsonResponse["error"].toString();
+                    errorFlag = true;
             }
+        } else {
+            error err = error("(wso2/ethereum)EthereumError", message="Error occurred while accessing the JSON payload of the response");
+            finalResult = "Error occurred while accessing the JSON payload of the response";
+            errorFlag = true;
+        }
+    } else {
+        error err = error("(wso2/ethereum)EthereumError", message="Error occurred while invoking the Ethererum API");
+        errorFlag = true;
+    }
 
-            return finalResult;
+    return finalResult;
 }
 
 function constructRequest(string jsonRPCVersion, int networkId, string method, json pars) returns http:Request {
