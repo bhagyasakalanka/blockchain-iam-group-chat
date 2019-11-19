@@ -140,7 +140,38 @@ service uiServiceHolderLogin on uiHolderLogin {
         return;
    }
 
-      @http:ResourceConfig {
+   @http:ResourceConfig {
+           methods:["GET"],
+           path:"/home/keepass",
+           cors: {
+               allowOrigins: ["*"],
+               allowHeaders: ["Authorization, Lang"]
+           }
+       }
+      resource function displayKeepassPage(http:Caller caller, http:Request req) {
+          string buffer = readFile("web/keypass-page.html");
+          string username = req.getQueryParamValue("username") ?: "";
+
+          if (caller.localAddress.host != "") {
+              buffer= stringutils:replace(buffer,"localhost", caller.localAddress.host);
+          }
+          buffer= stringutils:replace(buffer,"EMPTYUNAME", username);
+
+          http:Response res = new;
+
+          res.setPayload(<@untainted> buffer);
+          res.setContentType("text/html; charset=utf-8");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          res.setHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE");
+          res.setHeader("Access-Control-Allow-Headers", "Authorization, Lang");
+
+          var result = caller->respond(res);
+          if (result is error) {
+               log:printError("Error sending response", err = result);
+          }
+      }
+
+   @http:ResourceConfig {
         methods:["GET"],
         path:"/home/did",
         cors: {
@@ -598,6 +629,26 @@ service uiServiceHolderLogin on uiHolderLogin {
 
         }
    }
+
+      @http:ResourceConfig {
+          methods:["GET"],
+          path:"/home/components/field/field-template.html",
+          cors: {
+              allowOrigins: ["*"],
+              allowHeaders: ["Authorization, Lang"]
+          }
+      }
+     resource function sendGOVIDCSS(http:Caller caller, http:Request req) {
+         http:Response res = new;
+
+         res.setFileAsPayload("web/components/field/field-template.html", contentType = "text/html");
+         res.setContentType("text/html; charset=utf-8");
+
+         var result = caller->respond(res);
+         if (result is error) {
+              log:printError("Error sending response", err = result);
+         }
+     }
 
     @http:ResourceConfig {
         methods:["GET"],

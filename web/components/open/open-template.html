@@ -1,0 +1,31 @@
+<!-- <h3 ><span ng-if="!loaded">Open</span> Database</h3> -->
+<div ng-if="!loaded">
+    <form>
+        <h4>Location</h4>
+        <div class="form-group">
+            <label  ng-model="selected.source" ng-disabled="!sources.file.name" for="fileaName">File</label>
+            <input type="text" class="form-control" ng-model="sources.file.name" readonly id="fileaName"/>
+            <small id="message1" class="form-text text-muted">Please select the file location of your KeePass database using the file browser below.</small>
+        </div>
+        <div class="form-group">
+            <label for="kkkk">Browse&hellip;</label>
+            <input type="file" class="form-control" file-receiver="sources.file" value="file://home/miyurud/keepass/Database.kdbx" id="kkkk"/>
+        </div>
+        <h4>Credential(s)</h4>
+        <div class="form-group">
+            <label  ng-model="selected.credentials.password" for="credPassword" btn-checkbox ng-disabled="!credentials.password">Password</label>
+            <input id="credPassword" type="password" class="form-control" ng-keyup="$event.keyCode == 13 && load()" ng-model="credentials.password" />
+            <small id="message2" class="form-text text-muted">Please enter the password to open the KeePass database and click on load button.</small>
+        </div>
+<!--        <div class="spinner-border" role="status" style = "display:none" id="spinnerPanel">-->
+<!--            <span class="sr-only">Loading...</span>-->
+<!--        </div>-->
+        <button ng-if="!loaded" ng-disabled="loading" class="btn btn-primary" ng-click="load()" id="loadBtn">Load</button>
+        <button class="btn btn-primary" type="button" disabled id="loadingBtn" style = "display:none">
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            Loading...
+        </button>
+        <button ng-if="!loaded" class="btn" ng-click="clear()">Clear</button>
+        <button ng-if="loaded" class="btn btn-primary" ng-click="unload()">Next</button>
+    </form>
+</div>

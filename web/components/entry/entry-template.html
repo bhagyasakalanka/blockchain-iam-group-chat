@@ -1,0 +1,23 @@
+<accordion-group is-open="expanded">
+    <accordion-heading>
+        {{entry.fields.Title.value}} &mdash; {{entry.fields.URL.value}}
+        <i class="pull-right glyphicon" ng-class="{'glyphicon-chevron-down': expanded, 'glyphicon-chevron-right': !expanded}"></i>
+    </accordion-heading>
+    <table class="table">
+        <thead>
+            <tr><th>Field</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+            <tr ng-repeat="field in getFields(true)" field-renderer="field" />
+            <tr ng-repeat="field in getFields(false)" field-renderer="field" />
+        </tbody>
+    </table>
+    <table class="table" ng-if="hasBinary()">
+        <thead>
+            <tr><th>File name</th><th>Blob</th></tr>
+        </thead>
+        <tbody>
+            <tr ng-repeat="binary in entry.binaries" field-renderer="binary" />
+        </tbody>
+    </table>
+</accordion-group>
