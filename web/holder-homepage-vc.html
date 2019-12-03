@@ -1,13 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="stylesheet" type="text/css" href="http://localhost:8080/styles.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <script src="http://localhost:8080/ui-bootstrap/ui-bootstrap-tpls-0.11.0.min.js" type="text/javascript"></script>
     <script type="text/javascript">
       function didFunction() {
         window.location.replace("http://localhost:9091/home/did?username=EMPTYUNAME");
@@ -60,8 +53,7 @@ function showVC(dt){
 
 function decryptRSA(encrypted) {
    var decrypt = new JSEncrypt();
-   console.log('priv---->>>>>:' +  localStorage.getItem('privateKey'));
-   decrypt.setPrivateKey(localStorage.getItem('privateKey'));
+   decrypt.setPrivateKey(document.getElementById('privkey').value);
    var uncrypted = decrypt.decrypt(encrypted);
 
    return uncrypted;
@@ -155,7 +147,7 @@ function send(encryptedval) {
       var fileString = evt.target.result;
     
       document.getElementById('privkey').value = fileString;
-      console.log("privkey: " + localStorage.getItem('privateKey'));
+      console.log("privkey: " + document.getElementById('privkey').value);
     }
     
     function errorHandler(evt) {
@@ -166,106 +158,80 @@ function send(encryptedval) {
 </script>
 </head>
 <body bgcolor="lightblue">
-<nav class="navbar navbar-expand-lg bg-lightnavbar-dark bg-dark">
-    <a class="navbar-brand" href="#">Holder Application</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarText" aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-        <ul class="navbar-nav mr-auto">
-            <li class="nav-item active">
-                <a class="nav-link" href="javascript:void(0);" id="didLink" onclick="didFunction()">DID <span class="sr-only">(current)</span></a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0);" id="vcLink" onclick="vcFunction()">VC</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="http://localhost:9091/logout?username=EMPTYUNAME" id="logoutLink" >Logout</a>
-            </li>
-        </ul>
-    </div>
-</nav>
-<div class="container">
-    <div class="row">
-        <table>
-            <tr>
+    <table border="0" width="600">
+      <tr>
+        <td>
+          <table>
             <tr>
                 <td>
-                    <table>
-                        <tr>
+                    <a href="javascript:void(0);" id="logout" onclick="didFunction();">DID</a>
+                </td>
+              </tr>
+                <tr>
+                <td>
+                    &nbsp;
+                  </td>
+                </tr>
+                  <tr>
+                <td>
+                    <a href="javascript:void(0);" id="logout" onclick="vcFunction();">VC</a>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  &nbsp;
+                </td>
+              </tr>
+              <tr>
+              <td>
+                  <a href="http://localhost:9091/logout?username=EMPTYUNAME" id="logout" download>Logout</a>
+              </td>
+            </tr>
+            </tr>
+          </table>
+        </td>
+        <td>
+          <table>
+            <tr>
+                <tr>
+                    <td>
+                        <table>
+                          <tr>
                             <td> Your Credentials Repository : </td>
                             <td>https://localhost:9091/vc/</td>
                             <input type="text" id="didTxt" name="didTxt" hidden value="DIDTXTVAL"></input>
-                        </tr>
-                    </table>
-            </tr>
-            <tr>
-                <td> <h3>Your List of Verifiable Credentials </h3> </td>
-            </tr>
-            <tr>
-                <td>
-                    <div id="vctable">
-                        VCTABLE
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td>
+                          </tr>
+                        </table>
+                </tr>
+                <tr>
+                    <td> <h3>Your List of Verifiable Credentials </h3> </td>
+                </tr>
+                <tr>
+                  <td>
+                      <div id="vctable">
+                    VCTABLE
+                      </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
                     <table>
-                        <tr>
-                            <td>Issuer URL : </td><td><input type="text" id="issuerURL" name="issuerURL" size=20 value="http://localhost:9090/api"></input></td>
-                        </tr>
-<!--                        <tr>-->
-<!--                            <td>Your private key file : </td><td><input type="file" id="file-input" name="file-input" size=20 onchange="startRead()"></input></td><td>&nbsp;</td>-->
-<!--                            <input type="text" id="privkey" name="privkey" style="display:none">-->
-<!--                        </tr>-->
-                        <tr>
-                            <td><input type="button" id="submitRequest" value="Request"></input></td><td>&nbsp;</td>
-                        </tr>
+                      <tr>
+                        <td>Issuer URL : </td><td><input type="text" id="issuerURL" name="issuerURL" size=20 value="http://localhost:9090/api"></input></td>
+                      </tr>
+                      <tr>  
+                        <td>Your private key file : </td><td><input type="file" id="file-input" name="file-input" size=20 onchange="startRead()"></input></td><td>&nbsp;</td>
+                        <input type="text" id="privkey" name="privkey" style="display:none">
+                      </tr>
+                      <tr>
+                          <td><input type="button" id="submitRequest" value="Request"></input></td><td>&nbsp;</td>
+                      </tr>
                     </table>
-                </td>
-            </tr>
-        </table>
-    </div>
-</div>
-
-
-<!--    <table border="0" width="600">-->
-<!--      <tr>-->
-<!--        <td>-->
-<!--          <table>-->
-<!--            <tr>-->
-<!--                <td>-->
-<!--                    <a href="javascript:void(0);" id="logout" onclick="didFunction();">DID</a>-->
-<!--                </td>-->
-<!--              </tr>-->
-<!--                <tr>-->
-<!--                <td>-->
-<!--                    &nbsp;-->
-<!--                  </td>-->
-<!--                </tr>-->
-<!--                  <tr>-->
-<!--                <td>-->
-<!--                    <a href="javascript:void(0);" id="logout" onclick="vcFunction();">VC</a>-->
-<!--                </td>-->
-<!--              </tr>-->
-<!--              <tr>-->
-<!--                <td>-->
-<!--                  &nbsp;-->
-<!--                </td>-->
-<!--              </tr>-->
-<!--              <tr>-->
-<!--              <td>-->
-<!--                  <a href="http://localhost:9091/logout?username=EMPTYUNAME" id="logout" download>Logout</a>-->
-<!--              </td>-->
-<!--            </tr>-->
-<!--            </tr>-->
-<!--          </table>-->
-<!--        </td>-->
-<!--        <td>-->
-<!--          -->
-<!--        </td>-->
-<!--      </tr>-->
-<!--    </table>-->
+                  </td>
+                </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
 </body>
 </html>

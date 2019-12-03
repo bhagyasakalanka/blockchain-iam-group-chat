@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 
-  <link rel="stylesheet" type="text/css" href="http://localhost:8080/styles.css">
 <script type="text/javascript">
 function load() {
   var uname = "";
@@ -12,7 +9,7 @@ function load() {
   var params = "username=" + document.getElementById('username').value + "&pwd=" + document.getElementById('pwd').value; 
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-      window.location.replace("http://localhost:9091/home/keepass?username=" + document.getElementById('username').value + "&page=DID");
+      window.location.replace("http://localhost:9091/home/did?username=" + document.getElementById('username').value + "&page=DID");
     }
   };
 
@@ -21,26 +18,42 @@ function load() {
   xhttp.send(params);
 };
 </script>
-  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 
 </head>
-<body class="text-center signin">
-<div class="form-signin">
-  <img class="mb-4" src="/docs/4.3/assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
-  <h1 class="h3 mb-3 font-weight-normal">Please sign in</h1>
-  <label for="username" class="sr-only">Email address</label>
-  <input id="username" class="form-control" placeholder="User name" required autofocus>
-  <label for="pwd" class="sr-only">Password</label>
-  <input type="password" id="pwd" class="form-control" placeholder="Password" required>
-  <div class="checkbox mb-3">
-    <label>
-      <input type="checkbox" value="remember-me"> Remember me
-    </label>
-  </div>
-  <button class="btn btn-lg btn-primary btn-block" type="submit" onclick="load()">Sign in</button>
-  <p class="mt-5 mb-3 text-muted">&copy; 2019</p>
-</div>
+<body>
+
+<h2>Holder login</h2>
+<body bgcolor="lightblue">
+<table>
+<tr>
+<td>
+  <label for="usernameLabel">User Name:</label><br/>
+<!--<input type="text" id="username" name="username" style="display:none">-->
+</td>
+<td>
+  <input type="text" id="username" name="username">
+</td>
+</tr>
+<tr>
+<td height="10"></td>
+</tr>
+<tr>
+<td>
+  <label for="privkey">Password:</label>
+</td>
+<td>
+<input type="password" id="pwd" name="pwd">
+</td>
+</tr>
+<tr>
+<td height="10"></td>
+</tr>
+<tr>
+<td>
+<input type="button" value="Submit" onclick="load()">
+</td>
+</tr>
+</table>
+<p id="demo"></p>
 </body>
 </html>

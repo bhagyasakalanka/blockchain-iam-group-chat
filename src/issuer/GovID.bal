@@ -327,9 +327,6 @@ service uiServiceGovIDLogin on uiGovIDLogin {
             if (hexEncodedString == pkHash) {
                 string randKey = generateRandomKey(16);
                 sessionMap[didmid] = randKey;
-                publicKey = publicKey.trim();
-                publicKey = stringutils:replace(publicKey," ", "");
-
                 finalResult = utils:encryptRSAWithPublicKey(publicKey, randKey);
             } else {
                 finalResult = "Failure in Key Verification";

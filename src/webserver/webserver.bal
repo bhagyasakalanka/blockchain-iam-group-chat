@@ -38,11 +38,7 @@ final map<string> MIME_MAP = {
 service webServerSvc on webServerEP {
     @http:ResourceConfig {
         methods: ["GET"],
-        path: "/*",
-        cors: {
-            allowOrigins: ["*"],
-            allowHeaders: ["Authorization, Lang"]
-        }
+        path: "/*"
     }
     resource function serveHtmlFiles(http:Caller caller, http:Request request) {
         http:Response res = new;
